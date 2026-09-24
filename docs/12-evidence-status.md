@@ -14,6 +14,33 @@
 
 ---
 
+# 零、已冻结的统一方法协议
+
+论文方法层统一采用：
+
+- renderable unit 作为唯一 visibility / culling 单位；
+- 每个 physical center 展开 12 个离线 yaw/pitch directions；
+- view-cell 为固定方向下的 horizontal disk；
+- 每个 view-cell 用 32 个圆盘内 Color-ID camera positions 生成 sampled regional GT；
+- 66° FOV 用于 GT、candidate 与 PVS contract；
+- 当前真实显示使用 60° frustum；
+- candidate 由后退视锥独立生成，禁止补 GT；
+- split 按 physical center 分组；
+- runtime 每个 view-cell 只执行一次 batched unit query；
+- V5 内部 9 点只用于 analytic field statistics。
+
+论文不再使用：
+
+- oriented-box / cube view-cell；
+- GLB/file packaging relation 作为方法定义；
+- “32 个 runtime views”或“9 次 camera query”的表述。
+
+详细 source of truth：
+
+- `docs/03a-unified-viewcell-protocol.md`
+
+---
+
 # 一、已经实现且可以作为 Method 事实描述的内容
 
 ## V5 Architecture
