@@ -13,7 +13,6 @@
 
 都必须服从本文档。
 
-历史实验中出现过的 oriented-box / cube region 不再进入论文主协议。
 
 ---
 
@@ -39,8 +38,6 @@ unit = BIM 构件。
 论文核心方法只关心：
 
 > unit 是否属于当前 view-cell 的 potentially visible set。
-
-不讨论 unit 与底层文件/GLB 的打包对应关系。
 
 ---
 
@@ -142,11 +139,7 @@ view-cell 中：
 
 不在单个 view-cell 内改变高度。
 
-因此论文中不再使用：
 
-- oriented-box view-cell；
-- cube view-cell；
-- arbitrary 3D box region。
 
 ---
 
@@ -546,8 +539,5 @@ V5：
 
 避免使用：
 
-- cube region
-- oriented-box view-cell
-- GLB-level visibility unit
 - “32 runtime views”
 - “9 camera queries”
