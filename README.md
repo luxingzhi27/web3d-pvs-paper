@@ -16,10 +16,10 @@
 2. 12 个固定方向 × 每方向 top-8 potential occluder 的纯几何关系图；
 3. 单层 relation compiler，生成 12×7 anchor responses；
 4. 固定一阶方向基投影为结构化 4×7（28D）单调 survival field；
-5. 9 个 view-cell support 的解析查询，得到 center/max/mean/min 四个 survival statistics；
+5. 对水平圆盘 view-cell 的中心与 8 个圆周 support 做解析查询，得到 center/max/mean/min 四个 survival statistics；
 6. 32D geometry + 4D field statistics + 16D query geometry → 52→32→1 visibility logit；
 7. 用 domain-robust constrained objective 学习跨场景共享的保守零阈值决策边界；
-8. 实例分数聚合到 GLB/resource 层，用于渐进式 Web 下载调度。
+8. 以 renderable unit 为统一预测与剔除单位，将 unit-level visibility signal 用于渐进式 Web 内容选择与排序。
 
 ## 源代码基准快照
 
@@ -50,6 +50,7 @@ V5 主要实现位置：
 | `docs/01-introduction.md` | Introduction 的段落逻辑与写法 |
 | `docs/02-related-work.md` | Related Work 结构、文献角色、对比逻辑 |
 | `docs/03-problem-formulation.md` | 正式问题定义与符号 |
+| `docs/03a-unified-viewcell-protocol.md` | 统一水平圆盘 view-cell、GT、candidate 与在线查询协议 |
 | `docs/04-gcof-method.md` | Geometry-Compiled Occlusion Field 方法 |
 | `docs/05-shared-boundary-learning.md` | 共享保守零边界训练目标 |
 | `docs/06-web-streaming-system.md` | Web runtime 与调度集成 |
