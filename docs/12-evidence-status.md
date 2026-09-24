@@ -1,125 +1,220 @@
-# 12 — Evidence Status
+# 12 — Evidence Status（证据状态）
 
-## Source snapshot
+## Source Snapshot
 
-Primary implementation repository:
+主实现仓库：
 
 - `luxingzhi27/web3d-pvs`
-- planning snapshot: `4faca3ce83ecc269d83a94c215a353925aa9be7e`
-- date: 2026-09-24
+- 当前论文规划基准：`4faca3ce83ecc269d83a94c215a353925aa9be7e`
+- 日期：2026-09-24
 
-## Strong / already implemented
+本文档用于防止：
 
-### V5 architecture
+> “代码里已经计划/实现”被误写成“论文已经实验证明”。
 
-Implemented:
+---
 
-- 32D local geometry encoder;
-- geometry-only 12-direction top-8 relation graph;
-- relation attention compiler;
-- fixed 12×7 → 4×7 directional projection;
-- analytic monotone survival transform;
-- nine-support region query;
-- Full 52→32→1 visibility head;
-- Geometry Field control;
-- Generic Relation 28 control.
+# 一、已经实现且可以作为 Method 事实描述的内容
 
-### Shared-boundary objective
+## V5 Architecture
 
-Implemented:
+已经实现：
 
-- fixed zero boundary;
-- extra-retention objective;
-- blended count/visual safety risk;
-- ten risk domains;
-- SmoothMax-style robust aggregation;
-- shared dual;
-- PBCE objective control.
+- 32D local geometry encoder；
+- geometry-only 12-direction top-8 relation graph；
+- relation attention compiler；
+- fixed 12×7 → 4×7 directional projection；
+- analytic monotone survival transform；
+- 9-support region query；
+- Full 52→32→1 visibility head；
+- Geometry Field control；
+- Generic Relation 28 control。
 
-### Evaluation infrastructure
+这些可以在 Method 中按代码事实描述。
 
-Implemented:
+---
 
-- strict train/calibration/validation/test permissions;
-- V5 score bundles;
-- fixed-zero evaluation;
-- calibrated diagnostic evaluation;
-- bootstrap LCB;
-- shared / LOSO contracts;
-- streaming-score export infrastructure.
+## Shared-Boundary Objective
 
-## Current model evidence
+已经实现：
 
-Available:
+- fixed zero boundary；
+- extra-retention objective；
+- blended count/visual safety risk；
+- 10 risk domains；
+- SmoothMax-style robust aggregation；
+- shared dual；
+- PBCE objective control。
 
-- long validation trajectories for Full, Geometry Field, Generic-28 and PBCE;
-- multiple random repeats, though the formal matrix was not fully closed at this snapshot.
+这些也可以作为正式方法描述。
 
-Current qualitative story:
+---
 
-- Full maintains strong fixed-zero safety;
-- Geometry Field is safe but less effective at culling;
-- Generic-28 provides a strong structured-vs-unstructured representation control;
-- PBCE does not naturally create the desired common zero boundary.
+## Evaluation Infrastructure
 
-Do not freeze final manuscript numbers until the formal result matrix is complete.
+已经实现：
 
-## Evidence still needed for the strongest paper
+- train/calibration/validation/test 权限隔离；
+- V5 columnar score bundle；
+- fixed-zero evaluation；
+- calibrated diagnostic evaluation；
+- bootstrap LCB；
+- shared / LOSO contracts；
+- streaming score export infrastructure。
 
-### Complete formal random-repeat matrix
+注意：
 
-Needed before the main model table is frozen.
+> infrastructure implemented ≠ formal result completed。
 
-### External blind holdout
+---
 
-Needed for the strongest label-free unseen-scene claim.
+# 二、当前已经有的 Model Evidence
 
-### V5 browser deployment
+目前已经存在：
 
-Current source README states V5 is not yet integrated into the browser runtime.
+- Full 的长期 validation trajectory；
+- Geometry Field 的长期 validation trajectory；
+- Generic-28 的长期 validation trajectory；
+- PBCE 的长期 validation trajectory；
+- 多个随机重复，其中部分 seed3 control 在当前快照时尚未全部闭环。
 
-Needed:
+当前可以作为内部论文故事依据的趋势：
 
-- V5 export format;
-- V5 WebGPU path;
-- V5 WASM path;
-- PyTorch/Web parity checks.
+- Full 在 fixed-zero 下具有强 safety；
+- Geometry Field 可以很 conservative，但 culling efficiency 较低；
+- Generic-28 提供了有意义的 structured-vs-unstructured 对照；
+- PBCE 并不会自然获得所需的 shared zero boundary。
 
-### V5 runtime benchmark
+但是：
 
-Needed:
+> 最终正文数字必须等 formal matrix 完整后再冻结。
 
-- actual asset bytes;
-- bytes/unit;
-- candidate-count scaling;
-- desktop/mobile latency.
+---
 
-### V5 Color-ID / image validation
+# 三、最终论文最重要但尚需闭环的证据
 
-Current formal image evidence is V4-era. V5 needs its own image-level validation if the paper makes image correctness claims.
+## 1. 完整 Formal Random-Repeat Matrix
 
-### V5 streaming re-evaluation
+用途：
 
-Final paper should regenerate with V5 scores:
+- main model table；
+- mean/std；
+- seed stability。
 
-- threshold-free ranking;
-- cost-aware ranking;
-- Bytes@95/99/99.9;
-- threshold filtering;
-- scheduler replay.
+未完成前，不冻结 Full / ablation 最终数字。
 
-### HZB / IFCBench closure
+---
 
-Any result currently marked unavailable/pending in source documents should remain unavailable until formally produced.
+## 2. External Blind Holdout
 
-## Writing rule
+这是最强 generalization claim 的关键。
 
-Any manuscript sentence using words such as:
+必须保证：
 
-- “demonstrates”;
-- “outperforms”;
-- “generalizes”;
-- “real-time”;
-- “reduces transfer by”;
+- blind scene 不参与 architecture design；
+- 不参与 checkpoint selection；
+- 不参与 hyperparameter tuning；
+- 不参与 threshold tuning。
 
-must map to completed evidence listed here.
+用途：
+
+> 证明 frozen shared model 可以对未见 scene 仅凭 geometry compilation 获得可用 visibility。
+
+---
+
+## 3. V5 Browser Deployment
+
+当前源仓库 README 明确：
+
+> V5 尚未正式接入 browser runtime。
+
+需要完成：
+
+- V5 export format；
+- WebGPU implementation；
+- WASM implementation；
+- PyTorch / Web parity。
+
+否则最终论文无法完整证明：
+
+> Web client runtime feasibility。
+
+---
+
+## 4. V5 Runtime Benchmark
+
+需要：
+
+- actual exported asset bytes；
+- bytes / instance；
+- candidate-count scaling；
+- WebGPU p50 / p95；
+- WASM p50 / p95；
+- desktop / mobile。
+
+用途：
+
+> 回答“为什么不直接传 proxy geometry 跑 conventional PVS？”。
+
+---
+
+## 5. V5 Image / Color-ID Validation
+
+当前正式 image-level evidence 主要来自 V4。
+
+V5 如果最终要声称：
+
+- visual correctness；
+- image-safe filtering；
+
+必须有自己的 frozen image evaluation。
+
+---
+
+## 6. V5 Streaming Re-Evaluation
+
+现有 streaming framework 已经较完整，但最终 paper 必须重新用 V5 score 生成：
+
+- pure neural ranking；
+- cost-aware ranking；
+- Bytes@95/99/99.9；
+- threshold filtering；
+- scheduler replay。
+
+不能直接沿用 V4 system result 冒充 V5 end-to-end evidence。
+
+---
+
+## 7. IFCBench / HZB / Scheduler 尚未闭环的部分
+
+凡源仓库当前标记：
+
+- unavailable；
+- pending；
+- formal result not ready；
+
+的项目，在正式产物生成前继续保持 unavailable。
+
+不能为了表格完整人工补值。
+
+---
+
+# 四、论文写作的证据门
+
+任何正文句子出现以下词：
+
+- demonstrates；
+- outperforms；
+- generalizes；
+- real-time；
+- reduces transfer by；
+- improves latency by；
+
+都必须能指向一个已经完成、冻结、协议正确的 formal artifact。
+
+否则只能写成：
+
+- design goal；
+- hypothesis；
+- preliminary validation；
+- planned evaluation。
