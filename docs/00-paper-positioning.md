@@ -1,114 +1,185 @@
-# 00 — 论文定位（Paper Positioning）
+# 00 — 论文定位（重新按图形学论文叙事层级整理）
 
-## 一句话研究问题
+## 当前最核心的论文问题
 
-> **在传统可见性算法所需的详细场景几何尚未下载到 Web 客户端之前，客户端如何估计保守的 from-region 可见性？**
+> **在详细场景几何尚未 resident 于 Web client 时，如何获得可用于 progressive delivery 的 from-region occlusion visibility？**
 
-更精确地说：
+本文最重要的不是某个 loss 或某个网络模块，而是一个不同的 **visibility operating point**：
 
-> **Can a Web client predict occlusion-aware from-region visibility using only compact pre-transmitted scene descriptors, before the detailed geometry required by conventional visibility algorithms is resident?**
+[
+\text{before detailed content residency}.
+]
 
-## 核心问题
+---
 
-大型 Web3D 场景无法在交互开始前一次性传完，因此浏览器必须持续回答：
+# 一、Primary Story：Pre-Geometry Visibility
 
-> **下一批最值得下载的几何是什么？**
+大型 Web3D 场景需要逐步传输。
 
-在详细 tile / GLB 尚未到达时，客户端通常可以提前获得并使用：
+现有客户端在详细 content 尚未到达时，可以使用：
 
 - frustum；
-- distance；
+- bounding volume；
 - hierarchy；
-- geometric error / SSE；
-- cache state。
+- distance；
+- SSE / geometric error；
 
-但这些信息基本不包含“遮挡”这一维。
+进行 content selection。
 
-于是出现一个天然的循环依赖：
+但 occlusion-aware relevance 通常依赖额外 scene representation。
 
-```text
-为了决定哪些 geometry 值得下载，需要 visibility
-                    ↑
-                    │
-传统 visibility 又往往依赖已经可用的 scene geometry
-```
-
-本文将这一问题称为：
-
-> **Pre-Geometry Visibility（几何下载前可见性）**
-
-## 这篇论文不应该被写成什么
-
-不要把论文主线写成：
-
-- “一个神经遮挡剔除网络”；
-- “一个更快的 NeuralPVS”；
-- “一个新的下载调度器”；
-- “一个 PointNet/GNN 架构”；
-- “一个 WebGPU 优化工作”。
-
-这些都只是组件或应用结果。
-
-## 最强的论文身份
-
-> **一种面向 pre-geometry Web streaming 的紧凑 geometry-compiled visibility representation，并通过跨场景共享的保守决策边界使其可以直接部署。**
-
-技术主体实际上有两个：
-
-1. **GCOF 表征**：把局部几何和纯几何遮挡上下文离线编译成紧凑、可连续查询的结构化方向场；
-2. **Shared conservative boundary learning**：使相同的零 logit 决策边界在不同场景/风险域上保持保守安全语义。
-
-Web streaming 是最能说明这两个性质价值的系统场景。
-
-## Novelty 边界
-
-不要声称以下事情本身是新的：
-
-- visibility-guided streaming；
-- neural visibility；
-- from-region PVS；
-- 基于 lightweight metadata 的 pre-content selection。
-
-已有工作分别覆盖了这些方向。
-
-真正要强调的是它们的交叉：
+因此形成 bootstrap gap：
 
 ```text
-learned visibility
-+ from-region query
-+ geometry-only scene compilation
-+ detailed geometry residency 之前的 client-side query
-+ shared conservative boundary
-+ progressive Web delivery
+visibility is useful for deciding what geometry to request
+                     ↑
+                     │
+conventional visibility needs a scene representation
+that may itself still be waiting to be transferred
 ```
 
-## 建议的贡献层级
+这应当是整篇论文的第一层问题。
 
-### Contribution A — 问题定义
+---
 
-提出并系统研究 **pre-geometry from-region visibility**。
+# 二、Primary Insight：Geometry-Compiled Visibility Representation
 
-### Contribution B — 表征
+content-preparation/server side 在发布场景前已经拥有 geometry。
 
-把 geometry-only local descriptor 与 potential-occluder relations 编译成一个紧凑的 4×7 structured directional survival field。
+因此本文的核心 idea 不是：
 
-### Contribution C — 学习目标
+> 在 client 再恢复一份完整 scene representation。
 
-设计共享的零决策边界，并通过 domain-robust safety constraint 使其在多个场景/结构域上保持保守。
+而是：
 
-### Contribution D — 系统验证
+> **把与遮挡相关的 scene context 在 offline stage 编译为一个远小于 detailed geometry 的 representation，并让 client 可以直接对 view region 查询。**
 
-将该信号接入资源级 progressive streaming，并从 safety、culling efficiency、资产大小、runtime、streaming utility 等角度验证。
+抽象流程：
 
-## 整篇论文必须回答的 reviewer 问题
+```text
+geometry
+   ↓ offline shared compiler
+compact visibility representation
+   ↓ pre-transfer
+client view-region query
+   ↓
+visibility relevance
+   ↓
+resource delivery
+```
 
-> **为什么客户端要先下载这个 visibility asset，而不是直接下载 coarse/proxy geometry 再运行 HZB 或其他 conventional PVS？**
+这才是 GCOF-PVS 的主 identity。
 
-因此最终实验必须在尽可能公平的前提下比较：
+---
 
-- startup bytes；
-- runtime cost；
-- candidate-count scaling；
-- safety；
-- useful culling；
-- progressive streaming benefit。
+# 三、Secondary Technical Idea：Structured Occlusion Field
+
+V5 的具体技术实现是：
+
+- local surface geometry；
+- geometry-only potential occluder relations；
+- relation compiler；
+- compact directional field；
+- analytic region query；
+- small visibility head。
+
+它们共同服务于一个目标：
+
+> **用很小的 runtime representation 保留足够的 geometry-dependent occlusion context。**
+
+论文 Method 的重点应该是这种 representation design，而不是强调使用了哪一种 NN building block。
+
+---
+
+# 四、Secondary Technical Idea：Conservative Learning
+
+PVS 的 false negative 和 false positive 代价天然不对称：
+
+- false negative → visible content missing / delayed；
+- false positive → extra transfer / processing。
+
+因此 safety-aware / conservative learning 是必要的。
+
+但它在论文叙事中的层级应当是：
+
+> **让 compact representation 更适合 PVS deployment 的训练机制。**
+
+而不是和“pre-geometry visibility”并列成为整篇论文的第一主线。
+
+当前 fixed-zero / robust-boundary 设计可以是 Method 中较重要的一节，也可以成为 contribution 的一部分，但不应反过来主导 Introduction。
+
+---
+
+# 五、Scheduler 的定位
+
+visibility-guided transmission 早已有先例。
+
+因此：
+
+> scheduler 本身不是 headline novelty。
+
+本文更准确的系统贡献是：
+
+> **为 progressive Web3D 提供一个 detailed-content residency 之前即可获得的 occlusion-aware relevance signal。**
+
+resource-level ranking/filtering 是这个 signal 的自然应用。
+
+---
+
+# 六、当前建议的 3 个贡献层级
+
+## Contribution 1 — Pre-Geometry Visibility via Geometry Compilation
+
+提出一种面向 progressive Web3D 的 geometry-compilation approach，使 client 在 detailed geometry 到达前即可查询 from-region visibility relevance。
+
+## Contribution 2 — Compact Structured Representation and Query
+
+将 local geometry 与 geometry-only potential-occluder context 编译成紧凑 directional field，并设计轻量 region query；训练采用 conservative objective 适配 PVS 的 asymmetric error cost。
+
+## Contribution 3 — Web3D System Evaluation
+
+在 progressive resource delivery 中验证该 signal，并从 visibility safety/efficiency、asset/runtime cost 与 streaming utility 多维评价。
+
+如果 external blind holdout 最终非常强，可以加入：
+
+> no target-scene fitting
+
+作为 Contribution 1/2 的重要性质。
+
+---
+
+# 七、不要把这些内容抬成 headline
+
+除非最终实验显示它们本身就是 strongest novelty，否则以下内容不应在 Introduction 中占独立故事线：
+
+- fixed zero threshold；
+- target calibration protocol；
+- 10-domain SmoothMax；
+- shared dual；
+- PBCE；
+- exact 32D / 28D dimensionality；
+- WebGPU implementation details。
+
+这些应该分别属于：
+
+- Training / Method；
+- Evaluation protocol；
+- Implementation。
+
+---
+
+# 八、关键 reviewer 问题
+
+最终论文真正需要说服 reviewer 的不是：
+
+> “这个 neural classifier accuracy 高不高？”
+
+而是：
+
+1. 为什么 pre-geometry visibility 是一个有意义、未被当前 PVS operating point 直接解决的问题？
+2. 一个 compact compiled asset 是否真的比 proxy/coarse geometry 更有价值？
+3. geometry-only compilation 是否保留了足够的 occlusion information？
+4. client query 的 safety / efficiency / runtime 是否足够？
+5. 这个 signal 是否真的改善 progressive delivery？
+
+所有 Method 和实验都应该围绕这五个问题组织。
