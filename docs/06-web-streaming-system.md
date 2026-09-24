@@ -22,7 +22,7 @@ scene geometry
    │
    └─ unit AABBs
           ↓
-   geometry-only proxy relation graph
+   potential-occluder relation graph
           ↓
    frozen shared compiler
           ↓
@@ -33,7 +33,7 @@ scene geometry
 
 核心 deployment property：
 
-> visibility asset 由 geometry-only preprocessing + frozen shared model 得到，不需要 target-scene visibility labels，也不需要 target-specific fine-tuning。
+> 离线阶段把 scene-specific occlusion context 编译进 compact visibility asset；运行时客户端只查询该资产，而不需要 detailed scene geometry 已经 resident。
 
 ---
 
