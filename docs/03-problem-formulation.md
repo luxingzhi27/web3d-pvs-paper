@@ -18,11 +18,11 @@
 
 定义场景中的可独立剔除单位：
 
-[
+$$
 \mathcal U
 =
 \{u_i\}_{i=1}^{N}.
-]
+$$
 
 每个 unit 至少具有：
 
@@ -60,7 +60,7 @@
 
 空间区域为世界 (XZ) 平面中的水平圆盘：
 
-[
+$$
 \mathcal B(c,r)
 =
 \left\{
@@ -68,7 +68,7 @@ x:
 \|(x-c)_{XZ}\|_2\le r,;
 x_y=c_y
 \right\}.
-]
+$$
 
 在一个 view-cell 内：
 
@@ -86,21 +86,21 @@ x_y=c_y
 
 ## yaw
 
-[
+$$
 0^circ, 90^circ, 180^circ, 270^circ
-]
+$$
 
 ## pitch
 
-[
+$$
 -15^circ, 0^circ, 15^circ.
-]
+$$
 
 因此每个 center 对应：
 
-[
+$$
 4\times3=12
-]
+$$
 
 个离线 view-cells。
 
@@ -116,15 +116,15 @@ x_y=c_y
 
 对于一个 view-cell，在水平圆盘内冻结采样：
 
-[
+$$
 M=32
-]
+$$
 
 个 camera positions：
 
-[
+$$
 \{c_m\}_{m=1}^{32}.
-]
+$$
 
 其中包含圆盘中心，其余位置按冻结的面积均匀规则分布。
 
@@ -137,26 +137,26 @@ M=32
 
 设：
 
-[
+$$
 V(c_m)
 \subseteq
 \mathcal U
-]
+$$
 
 为第 (m) 个 Color-ID rendering 中的 visible units。
 
 则 sampled regional PVS 定义为：
 
-[
+$$
 \mathrm{PVS}(\mathcal B)
 =
 \bigcup_{m=1}^{32}
 V(c_m).
-]
+$$
 
 对应 unit label：
 
-[
+$$
 y_i(\mathcal B)
 =
 \mathbf 1
@@ -165,7 +165,7 @@ u_i
 \in
 \mathrm{PVS}(\mathcal B)
 \right].
-]
+$$
 
 这表示：
 
@@ -182,12 +182,12 @@ u_i
 
 若 (w_i(c_m)) 表示 unit (u_i) 在第 (m) 个 Color-ID sample 中的屏幕覆盖贡献，则区域权重定义为：
 
-[
+$$
 w_i(\mathcal B)
 =
 \max_{m=1,ldots,32}
 w_i(c_m).
-]
+$$
 
 因此训练/评价中的 weighted recall 面向的是：
 
@@ -201,27 +201,27 @@ candidate set 独立于 GT 构造。
 
 从 region center 沿固定观察方向向后移动：
 
-[
+$$
 \Delta
 =
 \frac{r}{\tan30^circ}.
-]
+$$
 
 在后退位置建立 (66^circ) candidate frustum，并对 unit AABB 做 frustum test，得到：
 
-[
+$$
 \mathcal C(\mathcal B)
 \subseteq
 \mathcal U.
-]
+$$
 
 数据协议要求：
 
-[
+$$
 \mathrm{PVS}(\mathcal B)
 \subseteq
 \mathcal C(\mathcal B).
-]
+$$
 
 若 sampled GT 中存在 visible unit 不在 candidate set 中，则 candidate protocol 失败。
 
@@ -239,13 +239,13 @@ candidate set 独立于 GT 构造。
 
 客户端只拥有由服务器/离线阶段编译得到的紧凑表示：
 
-[
+$$
 a_i.
-]
+$$
 
 目标是在当前 view-cell 下预测：
 
-[
+$$
 f_\theta
 (
 a_i,
@@ -255,7 +255,7 @@ a_i,
 z_i,
 qquad
 u_i\in\mathcal C(\mathcal B).
-]
+$$
 
 其中：
 
@@ -264,11 +264,11 @@ u_i\in\mathcal C(\mathcal B).
 
 设计目标：
 
-[
+$$
 |a_i|
 \ll
 |G_i|.
-]
+$$
 
 ---
 
@@ -285,11 +285,11 @@ false positive：
 
 因此：
 
-[
+$$
 C_{FN}
 \gg
 C_{FP}.
-]
+$$
 
 这构成 safety-first learning 与 evaluation 的基本动机。
 
