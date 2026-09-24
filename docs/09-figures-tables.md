@@ -1,139 +1,146 @@
-# 09 — Figures & Tables 规划
+# 09 — Figures & Tables 规划（按图形学论文视觉叙事调整）
 
 原则：
 
-> **每一张图、每一张表都必须回答一个 reviewer 问题。**
-
-如果只是展示实现细节，却不支撑任何论文 claim，应放 supplementary。
+> 图形学顶会/TOG 的前几张图通常承担“问题 + 核心 insight + 方法行为”的解释，而不是把论文写作逻辑做成流程框图。
 
 ---
 
-# Figure 1 — Problem Teaser
+# Figure 1 — Teaser：问题、方法行为和最终收益放在一起
 
-## 要证明什么
-
-> Web streaming 需要在 detailed geometry residency 之前获得 visibility relevance。
-
-建议画：
-
-- Server 上的大型 GLB resources；
-- 一个很小的 visibility asset；
-- Browser 当前 view-cell；
-- 一个“在 frustum 内但实际被挡住”的资源；
-- visibility-aware download priority；
-- useful geometry 更早到达。
-
-不要在 Figure 1 里塞完整网络结构。
-
----
-
-# Figure 2 — 不同方法处在 Content-Residency Pipeline 的哪个位置
-
-可以画三列：
+之前纯粹画：
 
 ```text
-Conventional Online PVS
-resident scene representation
-        ↓
-     visibility
-        ↓
-      render
+Server → visibility asset → browser → scheduler
 ```
+
+过于概念化，不够像图形学论文 teaser。
+
+更推荐：
+
+## 左侧：同一个 view-region
+
+展示一个有明显遮挡关系的 Web3D scene：
+
+- 当前 camera/view-cell；
+- foreground occluder；
+- behind-occluder geometry；
+- true potentially visible geometry。
+
+## 中间：baseline pre-download selection
+
+例如：
+
+- frustum / projected-size / distance；
+
+把一些 occluded resources 标记为高优先级。
+
+## 右侧：GCOF-PVS
+
+展示：
+
+- compact visibility asset；
+- predicted relevance；
+- visible resources 更早到达；
+- occluded resources 被延后。
+
+如果最终有 streaming data，可以在 Figure 1 下面直接放：
+
+- same downloaded-byte budget；
+- baseline rendering；
+- ours rendering。
+
+这样 teaser 同时回答：
+
+> 这是个什么问题？  
+> 我们的方法改变了什么？  
+> 有什么视觉/系统收益？
+
+这更接近 Trim Regions / NeuralPVS 的 Figure 1 风格。
+
+---
+
+# Figure 2 — Method Overview
+
+Figure 2 再画完整 pipeline：
 
 ```text
-NeuralPVS
-runtime geometry representation
-        ↓
-    neural PVS
-        ↓
-      render
+OFFLINE
+local geometry + proxy occlusion relations
+            ↓
+shared geometry compiler
+            ↓
+compact directional field
+================ transfer boundary ================
+WEB RUNTIME
+view region
+    ↓
+analytic field query
+    ↓
+visibility score
+    ↓
+resource priority
 ```
 
-```text
-GCOF-PVS
-compact compiled asset
-        ↓
-     visibility
-        ↓
-     download
-        ↓
-     geometry
-        ↓
-      render
-```
+不要在 Figure 2 同时塞所有 layer dimensions。
 
-这张图主要用于：
+目标是让 reviewer 30 秒理解：
 
-> 把我们的 operating point 与 NeuralPVS / online PVS 一眼区分开。
+> 哪些 computation offline，哪些 runtime，详细 geometry 在哪里消失。
 
 ---
 
-# Figure 3 — GCOF Architecture
+# Figure 3 — GCOF Representation Detail
 
-必须明确标出：
+这里才详细画：
 
-## OFFLINE / CONTENT PREPARATION
+- 256-point local surface；
+- 12 anchor directions；
+- top-K potential occluders；
+- relation aggregation；
+- anchor responses；
+- fixed directional projection；
+- 4×7 field。
 
-- 256-point local surface encoder；
-- AABB relation graph；
-- 12 anchors × top-8；
-- attention relation compiler；
-- 12×7 anchor responses；
-- fixed first-order directional projection；
-- 4×7 compact field。
+这张图回答：
 
-## TRANSFER BOUNDARY
-
-明确画一条线：
-
-> 哪些东西传到 Web client，哪些不传。
-
-## WEB RUNTIME
-
-- view-cell；
-- 9 support points；
-- analytic field query；
-- center/max/mean/min；
-- 16D query geometry；
-- tiny visibility head。
+> compact field 到底如何从 geometry-only context 编译出来？
 
 ---
 
-# Figure 4 — Structured Survival Field Intuition
+# Figure 4 — Region Query / Structured Field Intuition
 
-选一个 target。
+展示：
 
-画：
+- 一个 target；
+- 几个 directional survival curves；
+- view-cell 9 support points；
+- center / max / mean / min。
 
-- 几个不同方向；
-- survival vs normalized distance curve；
-- (S(0)=1)；
-- monotonicity。
+作用：
 
-这张图用于解释：
-
-> 为什么这不是普通 28D latent。
+> 解释 structured field 为什么不是普通 latent。
 
 ---
 
-# Figure 5 — Shared Zero Boundary
+# Figure 5 — Shared Boundary（只有结果够强才进正文）
 
-这是非常值得做成主图的一张。
+这是 training result figure，不应该排在很前。
 
 每个 scene：
 
-- visible score histogram / KDE；
-- invisible score histogram / KDE；
-- (z=0) 垂直线。
+- visible score distribution；
+- invisible score distribution；
+- (z=0)。
 
 比较：
 
 - Full；
 - PBCE。
 
-它直接回答：
+如果它非常有说服力，放 Evaluation。
 
-> robust-boundary training 是否真的让零边界跨场景对齐。
+如果只是辅助训练分析，移 supplementary。
 
 ---
 
@@ -141,58 +148,30 @@ compact compiled asset
 
 横轴：
 
-- Useful Cull；
-- 或 CNOR。
+- Useful Cull / CNOR。
 
 纵轴：
 
-- weighted recall；
-- 或 miss risk。
+- Weighted Recall / Bad Cull。
 
-展示：
+回答：
 
-- Full；
-- Geometry Field；
-- Generic-28；
-- PBCE；
-- 其他 baseline。
-
-作用：
-
-> 不用一个单指标掩盖 conservative trade-off。
+> 在 conservative constraint 下，各方法能剔除多少真正冗余 geometry？
 
 ---
 
-# Figure 7 — Asset / Runtime Scaling
+# Figure 7 — Asset / Runtime Cost
 
-建议两张独立图。
+分别画：
 
-### 图 A
+- asset bytes vs number of units；
+- latency vs candidate count。
 
-横轴：
+这是回答：
 
-- number of units。
+> 为什么不传 proxy geometry 直接跑 HZB？
 
-纵轴：
-
-- visibility asset MiB / bytes。
-
-### 图 B
-
-横轴：
-
-- number of queried candidates。
-
-纵轴：
-
-- latency ms。
-
-分别报告：
-
-- WebGPU；
-- WASM。
-
-等 V5 runtime 真正实现后再冻结。
+的重要图。
 
 ---
 
@@ -200,138 +179,99 @@ compact compiled asset
 
 横轴：
 
-- Downloaded MiB。
+- downloaded bytes / time。
 
 纵轴：
 
-- Visible-weight coverage。
+- visible-weight coverage。
 
-方法：
+比较：
 
-- V5 (p_g)；
-- V5 (p_g/B^\alpha)；
-- AABB；
-- HZB visible-first；
+- baseline priority；
 - projected area / byte；
+- AABB；
+- HZB；
+- GCOF；
+- GCOF / byte；
 - oracle。
-
-这张图直接回答：
-
-> 同样下载 X MiB，谁更快得到正确可见内容？
 
 ---
 
 # Main Tables
 
-## Table 1 — Related Work Operating Point
+## Table 1 — Related Work / Operating Point
 
-推荐列：
+不要做“我们全勾、别人全叉”的营销表。
 
-- method；
-- from-region；
-- runtime scene representation required；
-- learned；
-- pre-content client query；
-- streaming use。
+建议客观列：
 
-这张表不能写成“我们全是勾，别人全是叉”的宣传表。
-
-应该保持事实性。
+- Method
+- From-region?
+- Runtime scene representation
+- Scene-specific preprocessing
+- Learned?
+- Client pre-content query?
+- Streaming application
 
 ---
 
-## Table 2 — Scene / Dataset Summary
-
-列：
+## Table 2 — Dataset / Scene Summary
 
 - scene；
-- domain type；
-- unit count；
-- resource / GLB count；
-- view-cell type；
-- split size；
-- 在 shared / LOSO / blind holdout 中的角色。
+- units；
+- resources；
+- view-cell；
+- role。
 
 ---
 
-## Table 3 — Fixed-Zero Main Result
+## Table 3 — Main Visibility Result
 
-行：
+把 safety 放前面：
 
-- Full；
-- Geometry Field；
-- Generic-28；
-- PBCE。
-
-列重点：
-
-- worst-scene WR；
-- worst-scene LCB；
-- scene-equal WR；
-- CNOR；
-- Useful Cull；
+- WR；
+- LCB；
 - Bad Cull；
-- PR-AUC lift。
+- Useful Cull；
+- CNOR。
+
+然后才：
+
+- PR-AUC；
+- accuracy 等。
 
 ---
 
-## Table 4 — Generalization
+## Table 4 — Representation / Training Ablations
 
-分开：
+不要把所有 ablation 混在 Main Table。
 
-- shared known scenes；
-- LOSO；
-- external blind holdout。
+可以分别回答：
 
-一定要有一列：
-
-> 是否使用 target labels / calibration。
-
-否则 reviewer 很难判断真正的 zero-shot 程度。
+- context necessary? Full vs Geometry Field；
+- structure necessary? Full vs Generic-28；
+- objective necessary? Full vs PBCE。
 
 ---
 
-## Table 5 — Runtime Asset
+## Table 5 — Runtime / Asset Cost
 
-列：
-
-- method；
-- startup bytes；
-- bytes / unit；
-- WebGPU p50/p95；
-- WASM p50/p95；
-- candidate count。
+这是 system claim 的关键。
 
 ---
 
-## Table 6 — Streaming
+## Table 6 — Progressive Streaming
 
-列：
-
-- Bytes@95；
-- Bytes@99；
-- Bytes@99.9；
-- Waste@99；
-- 固定带宽时间。
+Bytes@95 / 99 / waste / bandwidth time。
 
 ---
 
-## Table 7 — Scheduler Replay
+# 总体规则
 
-列：
+前 3 张图优先解释：
 
-- p50；
-- p95；
-- downloaded bytes；
-- waste；
-- startup-asset overhead。
+1. 问题和视觉/系统收益；
+2. offline vs runtime 的核心 pipeline；
+3. compact representation 的关键机制。
 
----
-
-# 图表规划的总体原则
-
-每一张图都先写一句：
-
-> **This figure is intended to prove ______.**
-
-如果这句话写不出来，这张图大概率不应该进正文。
+训练机制相关图应该后移到 Evaluation，而不是主导论文前半部分。
