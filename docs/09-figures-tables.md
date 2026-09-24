@@ -108,18 +108,19 @@ resource priority
 
 ---
 
-# Figure 4 — Region Query / Structured Field Intuition
+# Figure 4 — Directional Survival Field 与 Region Query
 
-展示：
+展示一个 target-centered directional field：
 
-- 一个 target；
-- 几个 directional survival curves；
-- V5 单次 query 内部的 9 个 analytic field support points；
-- center / max / mean / min。
+- 不同方向上的 survival curves；
+- location / scale 对 curve transition 的影响；
+- $S(0)=1$ 与 distance monotonicity；
+- horizontal-disk view-cell 的 9 个 analytic support points；
+- center / max / mean / min regional statistics。
 
 作用：
 
-> 解释 structured field 为什么不是普通 latent。
+> 解释 survival field 如何把 surrounding occlusion context 转化为连续的 direction-distance query，以及它为什么不同于普通 28D latent。
 
 ---
 
