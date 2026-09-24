@@ -68,25 +68,25 @@ scene geometry
 
 从当前 view-cell center 沿当前观察方向后退：
 
-[
+$$
 \Delta
 =
 \frac{r}{\tan30^circ}.
-]
+$$
 
 在后退位置建立：
 
-[
+$$
 66^circ
-]
+$$
 
 candidate frustum，并对 unit AABB 做 frustum test。
 
 得到 candidate units：
 
-[
+$$
 \mathcal C(\mathcal B).
-]
+$$
 
 candidate generation 与 model prediction 分开：
 
@@ -133,15 +133,15 @@ V5 内部的 9 个 points 只是：
 
 使用冻结 decision rule 后得到 predicted potentially visible units：
 
-[
+$$
 \widehat{\mathrm{PVS}}(\mathcal B).
-]
+$$
 
 然后使用当前真实：
 
-[
+$$
 60^circ
-]
+$$
 
 display frustum 进一步过滤当前帧需要处理的 units。
 
@@ -169,9 +169,9 @@ regional PVS 是为了在一段局部相机运动范围内保持保守与可复�
 
 每个 candidate unit 得到一个 visibility score：
 
-[
+$$
 s_i.
-]
+$$
 
 该信号可以用于：
 
