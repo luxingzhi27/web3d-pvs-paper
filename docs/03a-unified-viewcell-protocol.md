@@ -183,7 +183,7 @@ $$
 
 执行硬件 Color-ID rendering。
 
-对 unit (u_i)：
+对 unit $u_i$：
 
 ## Region Visibility Label
 
@@ -199,7 +199,7 @@ $$
 mathrm{PVS}(mathcal B)
 =
 igcup_{m=1}^{32}
-V(c_m).
+$V(c_m)$.
 $$
 
 这里表示：
@@ -212,13 +212,13 @@ $$
 
 ## Visual Weight
 
-对于 unit (u_i)，其区域 visual weight 使用：
+对于 unit $u_i$，其区域 visual weight 使用：
 
 $$
 w_i(mathcal B)
 =
 max_{m=1,ldots,32}
-w_i(c_m),
+$w_i(c_m)$,
 $$
 
 即 32 个 Color-ID samples 中最大屏幕覆盖贡献。
@@ -239,7 +239,7 @@ $$
 
 它必须独立由 camera/view geometry 得到。
 
-对于圆盘半径 (r_s)，从 region center 沿当前固定观察方向向后移动：
+对于圆盘半径 $r_s$，从 region center 沿当前固定观察方向向后移动：
 
 $$
 Delta =
