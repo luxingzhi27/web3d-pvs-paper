@@ -54,13 +54,13 @@
 
 基于 unit AABB、固定方向和 projected overlap 构造 potential-occluder relations，用于描述 target unit 周围的遮挡上下文。
 
-### 3.4 Geometry-Compiled Occlusion Field
+### 3.4 Geometry-Compiled Directional Survival Field
 
-使用单层 relation compiler 聚合周围遮挡上下文，并将 directional responses 投影为紧凑的 structured field。
+使用 relation compiler 聚合 surrounding occlusion context，并将离散方向 responses 投影为连续可查询的低阶 directional field。该 field 以单调 survival function 表示 target 沿给定方向和距离的结构化遮挡状态，而不是最终 visibility probability。
 
 ### 3.5 From-Region Query
 
-在水平圆盘中心与 8 个圆周 support points 上解析查询 structured field，得到区域统计量，并结合 query geometry 输出 per-unit visibility score。
+在水平圆盘中心与 8 个圆周 support points 上解析查询 survival field，汇总 center/max/mean/min regional occlusion statistics，并与 local geometry 和 query geometry 一起预测 per-unit visibility score。
 
 ### 3.6 Conservative Visibility Learning
 
