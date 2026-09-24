@@ -4,7 +4,7 @@
 
 这一节要解释：
 
-> 为什么 V5 不满足于“分类准确率高 / PR-AUC 高”，而必须让一个固定的 (z=0) 边界在不同场景中具有一致、安全的 deployment semantics。
+> 为什么 V5 不满足于“分类准确率高 / PR-AUC 高”，而必须让一个固定的 $z=0$ 边界在不同场景中具有一致、安全的 deployment semantics。
 
 如果每个新场景都需要：
 
@@ -90,8 +90,8 @@ $$
 
 其中：
 
-- (q_i)：pose inverse-sampling correction；
-- (G_s)：source-train split 的 visible occurrence 总数。
+- $q_i$：pose inverse-sampling correction；
+- $G_s$：source-train split 的 visible occurrence 总数。
 
 直觉：
 
@@ -213,7 +213,7 @@ $$
 $$
 p_s=
 \operatorname{softmax}
-(\alpha m_s)
+$\alpha m_s$
 $$
 
 分配 worst-domain-sensitive 权重，当前：
@@ -282,7 +282,7 @@ $$
 
 因此：
 
-> 旧设计文档里写的 (L_{vis}+L_{surv})、field-NLL 等内容，不应该再定义最终论文的主训练目标。
+> 旧设计文档里写的 $L_{\mathrm{vis}}+L_{\mathrm{surv}}$、field-NLL 等内容，不应该再定义最终论文的主训练目标。
 
 最终论文必须服从：
 
@@ -312,7 +312,7 @@ PBCE control 保留：
 
 因此它回答一个非常干净的问题：
 
-> **普通的 balanced classification objective，是否会自然产生一个跨场景都安全的 (z=0) operational boundary？**
+> **普通的 balanced classification objective，是否会自然产生一个跨场景都安全的 $z=0$ operational boundary？**
 
 论文对比重点不应该只是 accuracy。
 
