@@ -292,7 +292,7 @@ S(d_2)\le S(d_1).
 
 # 4.7 Disk-View Query Geometry 与 Visibility Head
 
-论文方法只描述水平圆盘协议，不再把 oriented-box / cube region 作为另一种正式 view-cell。
+论文方法统一以水平圆盘作为 view-cell 空间区域。
 
 query geometry 用于描述：
 
