@@ -1,91 +1,183 @@
-# 08 — Discussion and Limitations
+# 08 — Discussion and Limitations（讨论与局限）
 
-## Candidate-count dependence
+## 1. Candidate-Count Dependence
 
-V5 runtime query work scales with candidate units. This is a real trade-off relative to grid/froxel methods whose compute is tied more strongly to grid resolution.
+V5 的 runtime query cost 随 candidate unit 数增长。
 
-The paper should show empirical scaling rather than hide it.
+这是一个真实 trade-off。
 
-## Startup-asset scaling
+与固定 voxel/froxel grid 方法相比：
 
-Per-unit metadata means total visibility-asset size grows with scene unit count.
+- NeuralPVS 类方法的成本更依赖 grid resolution；
+- V5 更接近 per-candidate (O(N))。
 
-Trade-off:
+因此论文必须：
 
-- smaller streaming units → finer visibility/scheduling;
-- more units → larger metadata + more runtime queries.
+- 实测 candidate-count scaling；
+- 不要隐藏这一点；
+- 说明 Web candidate filtering / hierarchy 可以先缩小 query set。
 
-## Dynamic geometry
+---
 
-The compiled field reflects static geometry.
+## 2. Startup Visibility Asset 也随 Unit 数增长
 
-Geometry changes can invalidate:
+因为是 per-unit representation：
 
-- local descriptors;
-- AABB relations;
-- compiled occlusion fields.
+[
+\text{asset bytes}
+\propto
+N_{unit}.
+]
 
-Possible future directions:
+这和 streaming granularity 形成 trade-off：
 
-- local recompilation;
-- hybrid dynamic-occluder layer;
-- runtime HZB residual.
+### unit 更小
 
-Do not imply full dynamic-scene support unless implemented.
+优点：
 
-## Thin / porous / non-box-like occluders
+- visibility 更细；
+- scheduling 更精确。
 
-The proxy relation graph is intentionally compact and AABB based. It may be less informative for:
+缺点：
 
-- thin structures;
-- porous geometry;
-- foliage;
-- highly non-box-like occluders.
+- unit 数更多；
+- visibility metadata 更大；
+- runtime query 更多。
 
-This is a representation limitation, not merely an implementation bug.
+这应该成为 Discussion 的正式内容，而不是只在实验表格里出现。
 
-## Low-order directional field
+---
 
-The fixed first-order basis is intentionally low capacity.
+## 3. Dynamic Geometry
 
-Benefits:
+当前 compiled field 主要描述静态场景遮挡结构。
 
-- compactness;
-- smoothness;
-- fixed runtime shape;
-- analytic query.
+动态变化可能使：
 
-Cost:
+- local descriptor；
+- AABB relation；
+- compiled field；
 
-- limited angular frequency.
+失效。
 
-Generic-28 and possible higher-order controls help contextualize this design.
+未来方向可以包括：
 
-## Conservative safety-efficiency frontier
+- local recompilation；
+- dynamic occluder residual；
+- 与 runtime HZB 混合。
 
-No method simultaneously maximizes:
+在没有实现前，不要声称完整支持 dynamic scenes。
 
-- zero misses;
-- aggressive culling.
+---
 
-Frame results as a safety-efficiency frontier.
+## 4. AABB Proxy 对复杂遮挡体的表达能力有限
 
-## Generalization claim discipline
+relation graph 有意采用轻量 AABB proxy。
 
-LOSO plus an external blind holdout can support meaningful cross-scene transfer under the tested distributions.
+因此可能更难处理：
 
-They do not justify claims of arbitrary open-world generalization.
+- 很薄的几何；
+- porous structure；
+- foliage；
+- 栅栏；
+- 高度非盒状 occluder；
+- projection overlap 很大但实际遮挡很少的形状。
 
-## Survival-field semantics
+这不是单纯 implementation bug，而是 representation trade-off。
 
-The analytic field is an intermediate structured statistic.
+---
 
-Do not equate it with exact physical object-visibility probability.
+## 5. Low-Order Directional Field 的容量限制
 
-## V4 / V5 system evidence
+Full 使用固定一阶方向 basis：
 
-If V5 browser deployment is incomplete:
+[
+[1,d_x,d_y,d_z].
+]
 
-- keep V4 system results clearly labeled historical/legacy;
-- do not merge V4 runtime and V5 model results into one “ours” row;
-- close the V5 deployment gap before making end-to-end claims.
+优点：
+
+- compact；
+- smooth；
+- fixed runtime shape；
+- analytic query；
+- 方向结构可解释。
+
+代价：
+
+- angular frequency 有限；
+- 复杂方向遮挡可能表达不足。
+
+Generic-28、未来 higher-order field 都可以帮助解释这一 trade-off。
+
+---
+
+## 6. Safety–Efficiency Frontier
+
+任何 conservative PVS 都存在：
+
+[
+\text{Recall}\uparrow
+\Rightarrow
+\text{Cull Efficiency}\downarrow
+]
+
+的基本 trade-off。
+
+论文不应该追求“一个单独指标全胜”。
+
+更合理的表达：
+
+> 在满足安全约束的前提下最大化 useful culling / streaming utility。
+
+---
+
+## 7. Generalization Claim 的边界
+
+即使完成：
+
+- LOSO；
+- Bistro external blind holdout；
+
+也只能说明：
+
+> 在测试过的多种场景分布上具有有意义的 cross-scene transfer。
+
+不能声称：
+
+- arbitrary scene；
+- open-world；
+- 任意 geometry distribution；
+- 动态世界。
+
+---
+
+## 8. Survival Field 的语义
+
+analytic survival field 是：
+
+> structured intermediate statistic。
+
+它不是：
+
+> 精确物理 object visibility probability。
+
+最终 visibility 仍由：
+
+- field statistics；
+- geometry descriptor；
+- query geometry；
+
+共同预测。
+
+---
+
+## 9. V4 / V5 System Evidence 必须严格分开
+
+当前 V5 的 model evidence 比 system deployment 更完整。
+
+如果 V5 browser runtime 尚未完全闭环：
+
+- V4 runtime 只能标为 legacy / historical system evidence；
+- 不能和 V5 model result 拼成一个“ours”；
+- 最终 CGF 稿最好在投稿前完成 V5 end-to-end runtime 与 streaming evaluation。
