@@ -23,11 +23,11 @@ V5 的 runtime query cost 随 candidate unit 数增长。
 
 因为是 per-unit representation：
 
-[
+$$
 \text{asset bytes}
 \propto
 N_{unit}.
-]
+$$
 
 这和 streaming granularity 形成 trade-off：
 
@@ -91,9 +91,9 @@ relation graph 有意采用轻量 AABB proxy。
 
 Full 使用固定一阶方向 basis：
 
-[
+$$
 [1,d_x,d_y,d_z].
-]
+$$
 
 优点：
 
@@ -116,11 +116,11 @@ Generic-28、未来 higher-order field 都可以帮助解释这一 trade-off。
 
 任何 conservative PVS 都存在：
 
-[
+$$
 \text{Recall}\uparrow
 \Rightarrow
 \text{Cull Efficiency}\downarrow
-]
+$$
 
 的基本 trade-off。
 
