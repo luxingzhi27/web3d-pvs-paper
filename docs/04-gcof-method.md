@@ -85,11 +85,11 @@ usesVisibilityLabels = false
 8D edge feature：
 
 1–3. relative direction；  
-4. (log(1+d_{ij}/r_i))；  
-5. (log(r_j/r_i))；  
+4. $\log(1+d_{ij}/r_i)$；  
+5. $\log(r_j/r_i)$；  
 6. target projected-overlap ratio；  
 7. source projected-overlap ratio；  
-8. (log(1+mathrm{gap}/r_i))。
+8. $\log(1+\mathrm{gap}/r_i)$。
 
 核心解释：
 
@@ -133,7 +133,7 @@ $$
 
 同时显式保留：
 
-- (log(1+n_{ik}))；
+- $\log(1+n_{ik})$；
 - projected overlap sum。
 
 为什么要保留这两个统计量：
@@ -259,12 +259,12 @@ $$
 
 离线 GT 使用 32 个真实 Color-ID camera positions，但 V5 runtime **不会重放这些相机**。
 
-对于一次 V5 query，只在已经编译好的 structured field (C_i) 上使用 9 个 analytic support points：
+对于一次 V5 query，只在已经编译好的 structured field $C_i$ 上使用 9 个 analytic support points：
 
 - 圆盘中心；
 - 8 个等角圆周点。
 
-同一个 field (C_i) 在这 9 个位置上计算 survival statistics，并压缩为：
+同一个 field $C_i$ 在这 9 个位置上计算 survival statistics，并压缩为：
 
 $$
 [S_{center},S_{max},S_{mean},S_{min}].
