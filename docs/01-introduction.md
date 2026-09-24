@@ -194,7 +194,7 @@ progressive resource delivery
 
 建议：
 
-> 我们提出 GCOF-PVS。共享模型首先把每个 renderable unit 的局部表面几何及其由纯几何构造的 potential-occluder context 编译为紧凑 directional occlusion field。运行时，Web client 只需对当前 view region 在该 field 上进行少量解析查询，再通过一个轻量预测头得到 per-unit visibility score。该分数可进一步聚合到 GLB/resource 层，用于 filtering 或 progressive download ordering。
+> 我们提出 GCOF-PVS。共享模型首先把每个 renderable unit 的局部表面几何及其由纯几何构造的 potential-occluder context 编译为紧凑 directional occlusion field。运行时，Web client 只需对当前 view region 在该 field 上进行少量解析查询，再通过一个轻量预测头得到 per-unit visibility score。该 per-unit visibility score 可直接用于 unit-level filtering，并作为 progressive content ordering 的 occlusion-aware relevance signal。
 
 如果最终 cross-scene evidence 足够强，可以再加一句：
 
@@ -255,7 +255,7 @@ progressive resource delivery
 
 ### Contribution 3 — Progressive Web3D Evaluation
 
-> 将 visibility signal 接入 resource-level progressive delivery，并从 PVS safety/efficiency、runtime asset cost、client inference cost 与 streaming utility 多个维度进行评价。
+> 将 unit-level visibility signal 接入 progressive Web delivery，并从 PVS safety/efficiency、runtime asset cost、client inference cost 与 streaming utility 多个维度进行评价。
 
 如果最终 blind holdout 很强，可以在 Contribution 1/2 中补：
 
@@ -274,7 +274,7 @@ P1  PVS / from-region visibility 为什么重要，尤其对 streaming
 P2  classical + online + learned PVS 已经做得很好，但通常假设 visibility processor 有 scene representation
 P3  Web progressive streaming 的 bootstrap gap：要用 visibility 决定尚未 resident 的 geometry
 P4  Insight：把 occlusion context offline compile 成 compact visibility representation
-P5  GCOF-PVS 高层 pipeline + Web query / resource priority
+P5  GCOF-PVS 高层 pipeline + unit-level Web query / content priority
 P6  conservative PVS requirement + 一句话 training philosophy
 P7  contributions + headline results
 ```
