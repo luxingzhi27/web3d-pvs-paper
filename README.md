@@ -46,6 +46,7 @@ V5 主要实现位置：
 
 | 文件 | 作用 |
 |---|---|
+| `docs/00-overall-outline.md` | 简洁的论文总体大纲，作为正文结构的主参考 |
 | `docs/00-paper-positioning.md` | 论文主问题、novelty 边界、贡献层级 |
 | `docs/01-introduction.md` | Introduction 的段落逻辑与写法 |
 | `docs/02-related-work.md` | Related Work 结构、文献角色、对比逻辑 |
