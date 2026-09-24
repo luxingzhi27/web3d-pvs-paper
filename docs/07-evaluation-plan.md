@@ -237,7 +237,7 @@ threshold-free ordering 统一在 **candidate units** 上比较，例如：
 
 > **所有方法必须面对完全相同的 candidate unit set。**
 
-论文不讨论 unit 到底层 GLB/file 的打包对应关系；这不影响 visibility/culling 方法本身。
+评价始终在相同 candidate unit set 上比较 visibility/culling 与 progressive ordering。
 
 ---
 
