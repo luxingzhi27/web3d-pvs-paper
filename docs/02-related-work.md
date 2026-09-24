@@ -81,15 +81,15 @@ view-cell-specific PVS database
 
 也就是说，Related Work 里要逐步从：
 
-[
+$$
 	ext{precompute answers}
-]
+$$
 
 过渡到：
 
-[
+$$
 	ext{compile a reusable query representation}.
-]
+$$
 
 ---
 
@@ -101,11 +101,11 @@ view-cell-specific PVS database
 
 这篇对我们非常重要，因为它已经把：
 
-[
+$$
 	ext{PVS}
 ightarrow
 	ext{selective network transmission}
-]
+$$
 
 直接用于 networked walkthrough。
 
@@ -289,11 +289,11 @@ runtime visibility
 
 它主要支撑：
 
-[
+$$
 (	ext{element},	ext{view})
 ightarrow
 	ext{visibility}
-]
+$$
 
 这个 learned representation 思路已经有 precedent。
 
@@ -445,13 +445,13 @@ network transmission priority
 
 它已经直接把：
 
-[
+$$
 	ext{culling}
 +
 	ext{network transmission}
 +
 	ext{browser rendering}
-]
+$$
 
 放到统一 Web3D pipeline 中。
 
