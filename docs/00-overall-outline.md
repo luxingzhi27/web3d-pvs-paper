@@ -64,7 +64,7 @@
 
 ### 3.6 Conservative Visibility Learning
 
-考虑 PVS 中 false negative 与 false positive 的非对称代价，在减少冗余保留的同时约束 visible misses。具体 fixed-boundary / robust training 机制在本节给出。
+考虑 PVS 中 false negative 与 false positive 的非对称代价，在减少冗余保留的同时约束 visible misses。
 
 ---
 
@@ -80,7 +80,7 @@
 
 ### 4.3 Unit-Level Culling and Ordering
 
-使用预测分数产生 regional PVS，并结合当前 60° display frustum 完成即时 unit filtering；连续 visibility score 同时用于 progressive content ordering。
+使用预测结果形成 regional PVS，并结合当前 60° display frustum 完成即时 unit filtering；连续 visibility score 同时用于 progressive content ordering。
 
 ---
 
@@ -88,19 +88,19 @@
 
 ### 5.1 Experimental Setup
 
-介绍场景、统一 view-cell/GT 协议、训练与 evaluation splits、baseline 和指标。
+介绍场景、统一 view-cell/GT 协议、数据划分、baselines 和评价指标。
 
-### 5.2 Visibility Quality
+### 5.2 Main Visibility Results
 
-评价 fixed operating point 下的 safety 与 culling efficiency，重点报告 Weighted Recall、LCB、Bad Cull、Useful Cull 和 CNOR。
+评价完整 FULL 模型在固定 operating point 下的 safety 与 culling efficiency，重点报告 Weighted Recall、LCB、Bad Cull、Useful Cull 和 CNOR。
 
 ### 5.3 Ablation Study
 
-分别验证：
+只包含当前已有的三组正式消融：
 
-- surrounding occlusion context 的作用；
-- structured field 相比 generic latent 的作用；
-- conservative learning objective 的作用。
+1. FULL vs GEOMETRY_FIELD：验证 surrounding occlusion context；
+2. FULL vs GENERIC_RELATION_28：验证 structured field；
+3. FULL vs PBCE_OBJECTIVE：验证 conservative learning objective。
 
 ### 5.4 Cross-Scene Generalization
 
@@ -108,11 +108,11 @@
 
 ### 5.5 Runtime and Storage Cost
 
-报告 visibility asset 大小、bytes/unit、WebGPU/WASM latency 和 candidate-count scaling，并与几何/proxy-based baseline 比较。
+报告 V5 visibility asset 大小、bytes/unit、WebGPU/WASM latency 和 candidate-count scaling，并与可行的 geometry/proxy-based baseline 比较。
 
 ### 5.6 Progressive Delivery
 
-在相同 candidate unit set 和固定带宽条件下比较不同优先级策略，报告达到目标 visible coverage 所需的传输成本、时间和冗余。
+在相同 candidate unit set 下比较不同 ordering 策略，报告达到目标 visible coverage 所需的传输成本、时间和冗余；如完成真实 scheduler replay，则作为本节补充系统结果。
 
 ---
 
