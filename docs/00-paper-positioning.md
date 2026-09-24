@@ -28,7 +28,7 @@ unit-level culling / progressive ordering
 
 方法由三部分组成：
 
-1. **Geometry-only scene compilation**  
+1. **Offline scene compilation**  
    使用局部表面几何和 potential-occluder relations 编译遮挡上下文。
 
 2. **Compact structured visibility representation**  
@@ -40,7 +40,7 @@ unit-level culling / progressive ordering
 ## 论文贡献
 
 1. 提出面向 progressive Web3D 的 pre-geometry from-region visibility 方法，使客户端可以在 detailed geometry residency 之前获得遮挡感知的 unit relevance。
-2. 提出 geometry-compiled occlusion field，将 geometry-only local/context information 编译为紧凑、连续可查询的 per-unit visibility representation。
+2. 提出 geometry-compiled occlusion field，将 local geometry 与 surrounding occlusion context 编译为紧凑、连续可查询的 per-unit visibility representation。
 3. 在统一的 view-cell 协议下，从 PVS quality、cross-scene transfer、runtime/storage cost 和 progressive delivery 四个方面进行系统评价。
 
 ## 论文边界
