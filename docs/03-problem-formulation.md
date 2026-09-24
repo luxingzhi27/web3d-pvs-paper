@@ -10,7 +10,7 @@
 
 - `docs/03a-unified-viewcell-protocol.md`
 
-本文不再使用 oriented-box / cube view-cell，也不把底层文件打包形式纳入核心问题定义。
+本文统一采用 horizontal-disk view-cell，并始终以 renderable unit 作为 visibility / culling 的基本单位。
 
 ---
 
