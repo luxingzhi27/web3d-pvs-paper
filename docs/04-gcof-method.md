@@ -39,9 +39,9 @@ unit MLP: 131 → 64 → 32, SiLU + Tanh
 
 输出：
 
-[
+$$
 z_i\in\mathbb R^{32}.
-]
+$$
 
 这一节不要把 PointNet-like encoder 本身包装成创新。
 
@@ -105,31 +105,31 @@ relation graph 不是 learned scene memory，而是：
 
 每条关系边：
 
-[
+$$
 [z_i,z_j,e_{ij}]
 \in\mathbb R^{72}
-]
+$$
 
 经过：
 
-[
+$$
 72\rightarrow64\rightarrow32.
-]
+$$
 
 得到 edge message：
 
-[
+$$
 m_{ijk}.
-]
+$$
 
 在每个 target-anchor group 内做 attention aggregation：
 
-[
+$$
 h_{ik}
 =
 \sum_j
 \alpha_{ijk}m_{ijk}.
-]
+$$
 
 同时显式保留：
 
@@ -148,58 +148,58 @@ h_{ik}
 
 geometry-only base：
 
-[
+$$
 [z_i,a_k]
 :
 35\rightarrow32\rightarrow7.
-]
+$$
 
 relation delta：
 
-[
+$$
 [h_{ik},
 \log(1+n_{ik}),
 o_{ik},
 a_k]
 :
 37\rightarrow32\rightarrow7.
-]
+$$
 
 最终：
 
-[
+$$
 q_{ik}
 =
 q^{base}_{ik}
 +
 \mathbf1[n_{ik}>0]\Delta q_{ik}.
-]
+$$
 
 12 个 anchor response：
 
-[
+$$
 Q_i\in\mathbb R^{12\times7}.
-]
+$$
 
 然后使用固定一阶方向基：
 
-[
+$$
 [1,d_x,d_y,d_z]
-]
+$$
 
 的 Moore–Penrose pseudoinverse 投影：
 
-[
+$$
 Q_i
 \rightarrow
 C_i\in\mathbb R^{4\times7}.
-]
+$$
 
 最终 runtime field 只有：
 
-[
+$$
 4\times7=28
-]
+$$
 
 个值。
 
@@ -222,24 +222,24 @@ C_i\in\mathbb R^{4\times7}.
 
 归一化距离：
 
-[
+$$
 t=
 \log(1+d/r_i).
-]
+$$
 
 该 analytic transform 被构造为满足：
 
-[
+$$
 S(0)=1
-]
+$$
 
 并且固定方向上：
 
-[
+$$
 d_2>d_1
 \Rightarrow
 S(d_2)\le S(d_1).
-]
+$$
 
 因此它具有明确的 monotone inductive bias。
 
@@ -266,9 +266,9 @@ S(d_2)\le S(d_1).
 
 同一个 field (C_i) 在这 9 个位置上计算 survival statistics，并压缩为：
 
-[
+$$
 [S_{center},S_{max},S_{mean},S_{min}].
-]
+$$
 
 必须明确：
 
@@ -315,9 +315,9 @@ query geometry 用于描述：
 
 并输出 unit-level visibility logit：
 
-[
+$$
 z_i.
-]
+$$
 
 论文正文可在 implementation table 中给出最终冻结维度，但不需要为了兼容历史 box code 把 box-view-cell 重新引入方法定义。
 
