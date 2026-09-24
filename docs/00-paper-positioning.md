@@ -6,9 +6,9 @@
 
 本文最重要的不是某个 loss 或某个网络模块，而是一个不同的 **visibility operating point**：
 
-[
+$$
 \text{before detailed content residency}.
-]
+$$
 
 ---
 
