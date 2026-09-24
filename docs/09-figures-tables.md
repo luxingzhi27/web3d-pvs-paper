@@ -131,7 +131,7 @@ resource priority
 
 - visible score distribution；
 - invisible score distribution；
-- (z=0)。
+- $z=0$。
 
 比较：
 
