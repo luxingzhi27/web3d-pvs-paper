@@ -1,326 +1,260 @@
 # 07 — Evaluation Plan（实验与评价计划）
 
-## 本节目标
+## 评价目标
 
-实验部分应该围绕明确的 research questions 展开，而不是把仓库里能算出来的所有 metric 都堆进正文。
+实验部分围绕五类证据组织：
 
-建议最终按 RQ 组织。
+1. 主模型的 visibility quality；
+2. 已有三组正式消融；
+3. cross-scene generalization；
+4. runtime / storage cost；
+5. progressive delivery。
 
----
-
-# RQ1 — 一个固定零边界能否跨场景保持保守安全？
-
-主协议：
-
-$$
-\tau=0.
-$$
-
-必须报告：
-
-- per-scene weighted recall；
-- one-sided 95% LCB；
-- scene-equal mean；
-- worst-scene；
-- CNOR；
-- Useful Cull；
-- Bad Cull。
-
-主要比较：
-
-- Full；
-- Geometry Field；
-- Generic Relation 28；
-- PBCE。
-
-calibrated threshold 只作为 diagnostic，不应该取代 fixed-zero 主结论。
-
-### 推荐图
-
-每个场景分别画：
-
-- visible score distribution；
-- invisible score distribution；
-- 垂直的 $z=0$ 决策线。
-
-这样最直接展示：
-
-> shared boundary 是否真的具有跨场景一致语义。
+其中只有第 2 类属于 **ablation study**。后面三类用于验证方法的泛化性和系统价值，不引入新的模型消融。
 
 ---
 
-# RQ2 — Surrounding Occlusion Context 是否必要？
+# 7.1 Experimental Setup
 
-比较：
+统一说明：
 
-- Full；
-- Geometry Field。
+- real / synthetic scenes；
+- horizontal-disk view-cell protocol；
+- 32 个离线 GT camera positions；
+- candidate generation；
+- train / calibration / validation / test split；
+- baselines；
+- metrics。
 
-控制：
+主评价以 unit-level visibility 为准。
 
-- structured field 不变；
-- region query 不变；
-- robust objective 不变；
-- Geometry Field 尽量做 capacity match。
+## 主要指标
 
-核心问题：
-
-> **target 自身几何是否足以进行有效的 conservative occlusion prediction？**
-
-希望实验最终区分：
-
-- safety；
-- efficiency。
-
-如果 Geometry Field 很安全但 CNOR / Useful Cull 明显下降，应该解释为：
-
-> local target geometry 可以提供 conservative prior，但 surrounding occlusion relations 才提供真正有效的遮挡辨别能力。
-
----
-
-# RQ3 — Structured Field 是否真的有价值？
-
-比较：
-
-- Full；
-- Generic Relation 28。
-
-两者控制：
-
-- 都拥有 relation information；
-- runtime context 都是 28 个值；
-- 使用相同 robust objective。
-
-区别：
-
-- Full：structured analytic survival field；
-- Generic-28：unrestricted 28D relation latent。
-
-核心问题：
-
-> **收益是来自 relation context 本身，还是来自结构化、单调、可解析查询的 field representation？**
-
-这是 V5 最强的 representation ablation 之一。
-
----
-
-# RQ4 — Shared Conservative Boundary Objective 是否必要？
-
-比较：
-
-- Full + robust-boundary objective；
-- PBCE objective。
-
-保持 representation 完全一致。
-
-报告：
-
-- fixed-zero WR；
-- WR LCB；
-- calibrated diagnostic；
-- PR-AUC；
-- score distributions；
-- robust risk / shared dual dynamics（如果结果足够稳定）。
-
-核心问题：
-
-> **普通 balanced classification 是否会自然产生一个可跨场景部署的 operational boundary？**
-
-如果 PBCE ranking 尚可、但 zero-boundary safety 失败，那么论文要强调：
-
-> 任务不只是学会可见性排序，而是学会一个可以直接跨场景解释的 conservative decision boundary。
-
----
-
-# RQ5 — 不使用 Target-Scene Visibility Labels 时能否泛化？
-
-建议分两类协议。
-
-## External Blind Holdout
-
-这是最适合正文 headline 的 generalization evidence。
-
-必须先冻结：
-
-- architecture；
-- checkpoint；
-- hyperparameters；
-- $z=0$ 决策规则。
-
-然后才：
-
-- 转换 blind scene；
-- 只读取 geometry 编译资产；
-- 最后读取 GT 做评价。
-
-blind holdout 绝不能用于：
-
-- variant selection；
-- checkpoint selection；
-- threshold tuning；
-- loss design。
-
-## LOSO
-
-作为更系统的 cross-scene secondary evidence。
-
-必须清楚区分：
-
-### representation transfer
-
-是否不重新训练即可得到有效 ranking/score。
-
-### threshold transfer
-
-是否仍需要目标场景 calibration。
-
-如果论文主张 label-free deployment，headline 结果不应依赖 target calibration。
-
----
-
-# RQ6 — Pre-Geometry Visibility 本身的资产和运行成本是多少？
-
-必须重新针对 V5 测。
-
-报告：
-
-- total runtime visibility asset bytes；
-- bytes / unit；
-- shared-model bytes；
-- offline compilation time；
-- WebGPU latency；
-- WASM latency；
-- candidate-count scaling。
-
-候选规模可以按真实数据分布设置，例如：
-
-- 1k；
-- 5k；
-- 10k；
-- 20k；
-- 50k。
-
-公平 baseline：
-
-- Geometry-shell HZB；
-- AABB/proxy metadata；
-- 其他可以在 geometry residency 前使用的轻量表示。
-
-注意：
-
-> V4 runtime result 不能直接作为 V5 runtime result。
-
----
-
-# RQ7 — Visibility Signal 是否真正改善 Progressive Delivery？
-
-使用 V5 score sidecar。
-
-threshold-free ordering 统一在 **candidate units** 上比较，例如：
-
-- original / baseline order；
-- distance / projected-area baseline；
-- AABB-based visibility baseline；
-- HZB visible-first；
-- V5 visibility score；
-- GT visibility oracle。
-
-如果 progressive-delivery 实验需要引入传输成本，可以给每个 unit 关联其实际或标准化 payload cost，并报告：
-
-- Cost/Bytes@95；
-- Cost/Bytes@99；
-- Cost/Bytes@99.9；
-- waste-before-99；
-- 固定带宽下的时间换算。
-
-关键公平性约束：
-
-> **所有方法必须面对完全相同的 candidate unit set。**
-
-评价始终在相同 candidate unit set 上比较 visibility/culling 与 progressive ordering。
-
----
-
-# RQ8 — 在真实 Scheduler 状态机里是否仍然有收益？
-
-要求：
-
-- cold cache；
-- 相同 scheduler state machine；
-- 相同 bandwidth；
-- 相同 pose set；
-- 唯一变化是 priority source。
-
-报告：
-
-- time-to-coverage；
-- downloaded bytes；
-- waste；
-- p50 / p95。
-
-必须精确描述测到的是什么。
-
-例如：
-
-> 真实内容传输 + scheduler replay，不等于完整浏览器 first-frame rendering latency。
-
-如果以后补了真实 browser render path，再单独称：
-
-> end-to-end browser latency。
-
----
-
-# 指标层级
-
-## 第一层：Safety
-
-正文最优先：
+### Safety
 
 - Weighted Recall；
 - one-sided 95% LCB；
-- Bad Cull；
-- image-visible misses / wrong IDs（如果正式完成）。
+- Bad Cull。
 
-## 第二层：Occlusion Efficiency
+### Culling Efficiency
 
-- CNOR；
 - Useful Cull；
+- CNOR；
 - predicted count。
 
-## 第三层：Threshold-Free Ranking Quality
+### Ranking Quality
 
 - pose PR-AUC；
 - prevalence；
 - lift。
 
-## 第四层：System Utility
-
-- startup bytes；
-- runtime；
-- unit delivery cost / Bytes@x；
-- waste；
-- scheduler replay。
-
-不要让：
-
-- Accuracy；
-- F1；
-
-成为主叙事。
+Accuracy、F1 等只作为补充指标，不作为主结论。
 
 ---
 
-# 当前 V5 结果状态（基于论文规划快照 4faca3c）
+# 7.2 Main Visibility Results
 
-当前 validation 已经支持一个较清晰的初步故事：
+使用完整 FULL 模型评价主要 visibility performance。
 
-- Full 在 fixed-zero 下具有较高 safety；
-- Geometry Field safety 可以很高，但 culling efficiency 更差；
-- Generic-28 是非常有意义的 structured-vs-unstructured control；
-- PBCE 并不会自然产生所需的跨场景安全零边界。
+主 operating point 使用固定边界：
 
-但这些仍属于：
+$$
+\tau = 0.
+$$
 
-> formal validation / training matrix evidence。
+报告：
 
-在随机重复、blind holdout、frozen test、V5 browser system evidence 完成前，不冻结最终论文数字。
+- per-scene Weighted Recall；
+- worst-scene / scene-equal LCB；
+- Bad Cull；
+- Useful Cull；
+- CNOR；
+- PR-AUC。
+
+calibrated threshold 仅作为诊断，用于分析模型的 ranking / upper-bound behavior，不替代 fixed-zero 主结果。
+
+本节回答：
+
+> 完整模型能否在保守 safety 下有效剔除不可见 units？
+
+---
+
+# 7.3 Ablation Study
+
+消融实验只保留当前已经冻结的三组正式对照。
+
+## 7.3.1 Occlusion Context
+
+比较：
+
+- FULL
+- GEOMETRY_FIELD
+
+两者保持 structured field、query head 和训练目标一致，主要区别是是否使用 surrounding potential-occluder relations。
+
+回答：
+
+> target-local geometry 是否足以支持有效的遮挡预测，还是必须显式编码 surrounding occlusion context？
+
+重点比较：
+
+- Weighted Recall / LCB；
+- Useful Cull；
+- CNOR。
+
+---
+
+## 7.3.2 Structured Representation
+
+比较：
+
+- FULL
+- GENERIC_RELATION_28
+
+两者均使用 relation evidence，并保持相同的 runtime context budget；区别在于：
+
+- FULL：structured analytic directional field；
+- GENERIC_RELATION_28：unrestricted 28D latent。
+
+回答：
+
+> structured directional field 是否比同容量 generic latent 更适合作为 compact visibility representation？
+
+---
+
+## 7.3.3 Conservative Learning Objective
+
+比较：
+
+- FULL
+- PBCE_OBJECTIVE
+
+两者使用相同 Full representation，只改变训练目标。
+
+回答：
+
+> 普通 pose-balanced classification objective 是否能够产生与 conservative PVS 相适应的稳定 operating boundary？
+
+重点报告：
+
+- fixed-zero Weighted Recall / LCB；
+- Useful Cull / CNOR；
+- PR-AUC；
+- calibrated diagnostic。
+
+如有必要，可补充 score distribution 或 training dynamics，但这些不构成新的消融实验。
+
+---
+
+# 7.4 Cross-Scene Generalization
+
+本节独立于消融实验。
+
+## LOSO
+
+使用已有 LOSO protocol，评价 frozen model 在 held-out real scene 上的迁移能力。
+
+关注：
+
+- fixed operating point；
+- visibility safety；
+- culling efficiency；
+- ranking quality。
+
+## External Blind Holdout
+
+在 architecture、checkpoint 和 protocol 冻结后，对未参与设计和训练的 external scene 进行评价。
+
+该场景不得用于：
+
+- architecture selection；
+- checkpoint selection；
+- hyperparameter tuning；
+- threshold tuning。
+
+本节回答：
+
+> geometry-compiled visibility representation 能否在不使用 target-scene visibility fitting 的情况下迁移到未见场景？
+
+---
+
+# 7.5 Runtime and Storage Cost
+
+本节属于系统评价，不是网络消融。
+
+针对 V5 实际 runtime implementation 报告：
+
+- total visibility asset size；
+- bytes / unit；
+- shared model size；
+- offline compilation time；
+- WebGPU latency；
+- WASM latency；
+- latency vs candidate count。
+
+与可行的 geometry/proxy-based baseline 比较时，重点回答：
+
+> 为了在 detailed geometry residency 前获得 visibility，compact visibility asset 的存储与运行代价是否合理？
+
+V4 runtime 结果不能作为 V5 正式结果。
+
+---
+
+# 7.6 Progressive Delivery
+
+本节验证 visibility signal 是否对 progressive Web delivery 有实际价值。
+
+所有方法必须使用相同的 candidate unit set。
+
+可比较：
+
+- baseline / original order；
+- distance / projected-area heuristic；
+- AABB-based baseline；
+- HZB visible-first；
+- V5 visibility score；
+- GT visibility oracle。
+
+如实验引入单位传输成本，则报告：
+
+- Cost/Bytes@95；
+- Cost/Bytes@99；
+- Cost/Bytes@99.9；
+- waste-before-99；
+- 固定带宽下的 time-to-coverage。
+
+如进一步执行真实 scheduler replay，可在本节末报告：
+
+- p50 / p95；
+- delivered payload；
+- waste；
+- time-to-coverage。
+
+需要明确区分 scheduler replay 与完整 browser rendering latency。
+
+---
+
+# 当前实验边界
+
+## 已有正式消融
+
+仅包括：
+
+1. FULL vs GEOMETRY_FIELD
+2. FULL vs GENERIC_RELATION_28
+3. FULL vs PBCE_OBJECTIVE
+
+不再额外设计新的 architecture / hyperparameter ablation，除非后续审稿或实验结果明确需要。
+
+## 独立评价
+
+以下内容不是消融：
+
+- fixed-zero main results；
+- LOSO；
+- external blind holdout；
+- V5 runtime / storage；
+- progressive delivery；
+- scheduler replay。
+
+这些分别用于验证主模型、泛化能力和系统价值。
