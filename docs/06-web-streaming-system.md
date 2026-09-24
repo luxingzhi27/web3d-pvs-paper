@@ -1,117 +1,220 @@
-# 06 — Progressive Web3D Integration
+# 06 — Progressive Web3D Integration（Web 渐进式传输集成）
 
-## Section goal
+## 本节目标
 
-Show why the representation solves a Web-system problem. The scheduler itself should not be oversold as a new scheduling algorithm.
+这一节要证明：
 
-## 6.1 Offline scene compilation
+> GCOF-PVS 的 representation 不是为了单纯做一个离线分类 benchmark，而是为“客户端在 detailed geometry residency 之前做 occlusion-aware content decision”设计的。
 
-For a new scene:
+同时要避免把 scheduler 本身包装成主要算法创新。
+
+---
+
+# 6.1 Offline Scene Compilation
+
+对于一个新场景：
 
 ```text
 detailed geometry
-   ├─ surface sampling → z_i
-   └─ AABBs → proxy relation graph
-                      ↓
-               frozen shared compiler
-                      ↓
-                  field C_i
-                      ↓
-               runtime asset export
+   ├─ surface sampling
+   │      ↓
+   │     z_i
+   │
+   └─ AABBs
+          ↓
+   proxy relation graph
+          ↓
+   frozen shared compiler
+          ↓
+      field C_i
+          ↓
+  runtime visibility asset
 ```
 
-Central deployment property:
+核心 deployment property：
 
-> No target-scene visibility labels or target-scene fine-tuning are required for geometry compilation.
+> 新场景的 visibility asset 由 geometry-only preprocessing + frozen shared model 生成，不需要 target-scene visibility labels，也不需要 target-specific fine-tuning。
 
-## 6.2 Browser runtime
+这一点是 V5 与普通 scene-specific PVS database / visibility distillation 的重要区别。
 
-The browser receives compact per-unit metadata and shared query weights.
+---
 
-The point encoder and relation compiler are offline.
+# 6.2 Browser Runtime
 
-Runtime:
+浏览器最终只需要：
+
+- compact per-unit geometry descriptor；
+- 4×7 structured field；
+- AABB / unit metadata；
+- unit → resource mapping；
+- shared lightweight query-head weights。
+
+浏览器不运行：
+
+- 256-point geometry encoder；
+- proxy relation graph builder；
+- relation compiler。
+
+运行时链路：
 
 ```text
-view-cell
-   ↓
+current view-cell
+    ↓
 candidate units
-   ↓
-nine-support analytic field query
-   ↓
+    ↓
+9 support analytic field query
+    ↓
 visibility logits
 ```
 
-The paper must report actual exported bytes, not only a theoretical FP16 count.
+论文最终必须报告：
 
-## 6.3 Instance-to-resource aggregation
+> 实际导出 runtime asset 的真实字节数。
 
-When multiple instances map to one GLB/resource, use the exact implementation rule. Current conceptual form:
+不能只拿 FP16 理论估算冒充最终资产大小。
 
-\[
-p_g=\max_{i:g(i)=g}p_i.
-\]
+---
 
-Rationale:
+# 6.3 Instance-to-Resource Aggregation
 
-If any instance of a shared resource is strongly relevant, fetching the resource can be useful.
+模型预测单位是 instance / renderable unit，但网络下载单位往往是 GLB/resource。
 
-## 6.4 Ranking and filtering are different tasks
+如果多个实例映射到同一 GLB，可以采用：
 
-### Threshold filtering
+[
+p_g
+=
+\max_{i:g(i)=g}
+p_i.
+]
 
-Uses the conservative decision boundary and decides which resources can be deferred.
+直觉：
 
-Evaluate:
+> 只要同一资源中的任意一个实例当前高度可见，下载这个资源就可能有收益。
 
-- retained GLBs;
-- coverage ceiling;
-- missed visible utility;
-- retained bytes.
+最终论文必须以实际 implementation 的 aggregation rule 为准。
 
-### Threshold-free ranking
+---
 
-Uses continuous scores over the same candidate resource set.
+# 6.4 Filtering 与 Ranking 必须分开
 
-Evaluate:
+这是系统评价里非常重要的概念边界。
 
-- Bytes@95;
-- Bytes@99;
-- Bytes@99.9;
-- waste-before-99;
-- bandwidth-converted time.
+## Threshold Filtering
 
-Do not mix a threshold-filtered subset into the ranking curves.
+使用：
 
-## 6.5 Cost-aware priority
+- fixed zero；
+- 或冻结的 safe threshold；
 
-Current system also considers:
+输出：
 
-\[
+> 哪些 candidate resource 可以 defer / filter。
+
+评价：
+
+- retained GLB count；
+- retained bytes；
+- coverage ceiling；
+- visible utility miss。
+
+## Threshold-Free Ranking
+
+完全不先过滤 candidate set。
+
+而是：
+
+> 在同一个 candidate GLB 集合上改变下载顺序。
+
+评价：
+
+- Bytes@95；
+- Bytes@99；
+- Bytes@99.9；
+- waste-before-99；
+- bandwidth-converted time。
+
+不能把一个已经 threshold-filtered 的小集合拿去和完整集合的 ranking baseline 比较。
+
+---
+
+# 6.5 Cost-Aware Priority
+
+系统还可以使用：
+
+[
+\frac{p_g}{B_g^\alpha}.
+]
+
+其中：
+
+- (p_g)：visibility relevance；
+- (B_g)：resource bytes；
+- (alpha)：cost sensitivity。
+
+论文必须同时报告：
+
+### Pure visibility
+
+[
+p_g.
+]
+
+### Cost-aware visibility
+
+[
 p_g/B_g^\alpha.
-\]
+]
 
-The paper should present both:
+这样才能区分：
 
-- pure visibility score;
-- cost-aware visibility score.
+> 收益来自 visibility 预测，
 
-This separates gains from occlusion prediction from gains due merely to preferring small resources.
+还是：
 
-Select \(\alpha\) on validation, never test.
+> 只是因为偏爱小文件。
 
-## 6.6 Relation to modern Web selection
+(alpha) 必须在 validation 上选定，不能看 test。
 
-Position V5 as complementary to:
+---
 
-- frustum selection;
-- hierarchical traversal;
-- SSE / geometric error;
-- cache policy;
-- 3D Tiles-style request logic.
+# 6.6 与 3D Tiles / Web Selection 的关系
 
-It adds:
+GCOF-PVS 不应该被写成替代：
 
-> occlusion-aware relevance before detailed content residency.
+- frustum；
+- hierarchy；
+- SSE / geometric error；
+- cache policy；
+- 3D Tiles traversal。
 
-It does not replace the rest of a production streaming stack.
+而是补充一个现有 pre-content metadata 通常缺少的信号：
+
+> **occlusion-aware relevance before detailed content residency**
+
+可以把现代 Web selection 理解为：
+
+```text
+camera
++ bounding volumes
++ hierarchy
++ SSE
++ cache
+    ↓
+candidate resources
+```
+
+GCOF-PVS 在 candidate selection / scheduling 中增加：
+
+```text
+compact occlusion metadata
++ view region
+    ↓
+visibility relevance
+```
+
+因此它更适合作为：
+
+> 可插拔的 visibility signal，
+
+而不是重写整个 Web streaming stack。
