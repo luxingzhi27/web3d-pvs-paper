@@ -138,12 +138,12 @@ $$
 设：
 
 $$
-V(c_m)
+$V(c_m)$
 \subseteq
 \mathcal U
 $$
 
-为第 (m) 个 Color-ID rendering 中的 visible units。
+为第 $m$ 个 Color-ID rendering 中的 visible units。
 
 则 sampled regional PVS 定义为：
 
@@ -151,7 +151,7 @@ $$
 \mathrm{PVS}(\mathcal B)
 =
 \bigcup_{m=1}^{32}
-V(c_m).
+$V(c_m)$.
 $$
 
 对应 unit label：
@@ -180,7 +180,7 @@ $$
 
 # 3.5 Visual Weight
 
-若 (w_i(c_m)) 表示 unit (u_i) 在第 (m) 个 Color-ID sample 中的屏幕覆盖贡献，则区域权重定义为：
+若 $w_i(c_m)$ 表示 unit $u_i$ 在第 $m$ 个 Color-ID sample 中的屏幕覆盖贡献，则区域权重定义为：
 
 $$
 w_i(\mathcal B)
@@ -235,7 +235,7 @@ $$
 
 # 3.7 Pre-Geometry Visibility Task
 
-运行时客户端尚未拥有每个 unit 的 detailed geometry (G_i)。
+运行时客户端尚未拥有每个 unit 的 detailed geometry $G_i$。
 
 客户端只拥有由服务器/离线阶段编译得到的紧凑表示：
 
@@ -259,7 +259,7 @@ $$
 
 其中：
 
-- (z_i) 是 unit-level visibility score / logit；
+- $z_i$ 是 unit-level visibility score / logit；
 - 预测只对 candidate units 执行。
 
 设计目标：
