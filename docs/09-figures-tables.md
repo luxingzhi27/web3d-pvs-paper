@@ -114,7 +114,7 @@ resource priority
 
 - 一个 target；
 - 几个 directional survival curves；
-- view-cell 9 support points；
+- V5 单次 query 内部的 9 个 analytic field support points；
 - center / max / mean / min。
 
 作用：
@@ -179,7 +179,7 @@ resource priority
 
 横轴：
 
-- downloaded bytes / time。
+- delivered unit payload / time。
 
 纵轴：
 
@@ -219,8 +219,10 @@ resource priority
 
 - scene；
 - units；
-- resources；
-- view-cell；
+- renderable units；
+- horizontal-disk radius；
+- region-center / direction protocol；
+- offline GT positions；
 - role。
 
 ---
@@ -262,7 +264,7 @@ resource priority
 
 ## Table 6 — Progressive Streaming
 
-Bytes@95 / 99 / waste / bandwidth time。
+Unit delivery Cost/Bytes@95 / 99 / waste / bandwidth time。
 
 ---
 
