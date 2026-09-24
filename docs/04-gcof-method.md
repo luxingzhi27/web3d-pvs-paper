@@ -64,6 +64,15 @@ z_i\in\mathbb R^{32}.
 
 - 12 个正二十面体方向；
 - 每个 target / anchor 最多 top-8 potential occluders；
+
+这里必须与数据协议严格区分：
+
+> **模型内部的 12 个正二十面体 relation anchors，不是离线 GT 协议中的 12 个 yaw/pitch 相机方向。**
+
+两者都恰好是 12，但用途完全不同：
+
+- 离线 12 directions：训练/评价的 camera-direction coverage；
+- relation 12 anchors：geometry-only occlusion context 的模型内部方向基。
 - 根据 AABB orthographic overlap 和 depth ordering 构造；
 - 不读取 visibility labels。
 
@@ -242,84 +251,75 @@ S(d_2)\le S(d_1).
 
 ---
 
-# 4.6 Nine-Support From-Region Query
+# 4.6 水平圆盘上的 Nine-Support Analytic Query
 
-disk view-cell：
+论文统一的 view-cell 是：
 
-- center；
-- 8 个等角 ring points。
+> **固定观察方向 + 世界 XZ 平面中的水平圆盘。**
 
-oriented-box view-cell：
+离线 GT 使用 32 个真实 Color-ID camera positions，但 V5 runtime **不会重放这些相机**。
 
-- center；
-- 8 corners。
+对于一次 V5 query，只在已经编译好的 structured field (C_i) 上使用 9 个 analytic support points：
 
-同一个 (C_i) 在 9 个 support 上解析查询：
+- 圆盘中心；
+- 8 个等角圆周点。
+
+同一个 field (C_i) 在这 9 个位置上计算 survival statistics，并压缩为：
 
 [
-S_{ik}.
+[S_{center},S_{max},S_{mean},S_{min}].
 ]
 
-最终压成：
+必须明确：
 
-[
-[
-S_{center},
-S_{max},
-S_{mean},
-S_{min}
-].
-]
+> 这 9 个点只是**一次模型查询内部的解析 field evaluation points**。
 
-需要强调：
+它们不是：
 
-> 这不是把一个完整 point-visibility neural model 跑 9 次。
+- 9 个 rendered cameras；
+- 9 个独立 view-cells；
+- 9 次完整 neural inference。
 
-而是：
+因此论文中统一记成：
 
-[
-\boxed{
-\text{one compiled field}
-+
-\text{nine cheap analytic evaluations}
-+
-\text{one tiny head}
-}
-]
+```text
+32 = offline regional GT camera samples
+ 9 = one V5 query's analytic field supports
+ 1 = one batched runtime model query
+```
 
 ---
 
-# 4.7 Query Geometry 与最终 Visibility Head
+# 4.7 Disk-View Query Geometry 与 Visibility Head
 
-当前 query geometry 是 16D，主要包含：
+论文方法只描述水平圆盘协议，不再把 oriented-box / cube region 作为另一种正式 view-cell。
 
-- target → region center 的 world direction；
-- region → target 在 camera right/up/forward 中的方向；
-- normalized distance / radius；
-- normalized region extents；
+query geometry 用于描述：
+
+- target 与当前 region center 的相对方向；
+- 相机坐标系中的 target direction；
+- target distance / scale；
+- 圆盘半径相对于 target distance/size 的归一化关系；
 - FOV；
-- region type；
-- near / far normalized terms。
+- near / far projection parameters。
 
-Full 输入：
+当前实现保留了一些通用 region packing 字段，但在论文统一协议中：
 
-[
-32+4+16=52.
-]
+> region shape 固定为 horizontal disk，box-specific region-type / 3D half-axis 语义不作为方法定义展开。
 
-最终 head：
+最终 visibility head 接收：
 
-[
-52\rightarrow32\rightarrow1.
-]
+- local geometry descriptor；
+- 4D region survival statistics；
+- compact query geometry；
 
-输出 visibility logit：
+并输出 unit-level visibility logit：
 
 [
 z_i.
 ]
 
-到这里，runtime inference method 才完整。
+论文正文可在 implementation table 中给出最终冻结维度，但不需要为了兼容历史 box code 把 box-view-cell 重新引入方法定义。
 
 ---
 
