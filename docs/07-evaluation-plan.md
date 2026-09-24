@@ -41,7 +41,7 @@ calibrated threshold 只作为 diagnostic，不应该取代 fixed-zero 主结论
 
 - visible score distribution；
 - invisible score distribution；
-- 垂直的 (z=0) 决策线。
+- 垂直的 $z=0$ 决策线。
 
 这样最直接展示：
 
@@ -145,7 +145,7 @@ calibrated threshold 只作为 diagnostic，不应该取代 fixed-zero 主结论
 - architecture；
 - checkpoint；
 - hyperparameters；
-- (z=0) 决策规则。
+- $z=0$ 决策规则。
 
 然后才：
 
