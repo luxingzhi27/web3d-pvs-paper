@@ -1,104 +1,114 @@
-# 00 — Paper Positioning
+# 00 — 论文定位（Paper Positioning）
 
-## One-sentence research question
+## 一句话研究问题
 
-> How can a Web client estimate conservative from-region visibility before the detailed scene geometry required by conventional visibility algorithms has been downloaded?
+> **在传统可见性算法所需的详细场景几何尚未下载到 Web 客户端之前，客户端如何估计保守的 from-region 可见性？**
 
-A more precise version for the paper:
+更精确地说：
 
-> Can a Web client predict occlusion-aware from-region visibility using only compact pre-transmitted scene descriptors, before the detailed geometry required by conventional visibility algorithms is resident?
+> **Can a Web client predict occlusion-aware from-region visibility using only compact pre-transmitted scene descriptors, before the detailed geometry required by conventional visibility algorithms is resident?**
 
-## Core problem
+## 核心问题
 
-Large Web3D scenes cannot be transferred in full before interaction begins. Existing streaming systems therefore need to decide **what to download next**.
+大型 Web3D 场景无法在交互开始前一次性传完，因此浏览器必须持续回答：
 
-Frustum, distance, hierarchy and screen-space-error metadata can be evaluated before tile content arrives, but they do not provide occlusion-aware relevance.
+> **下一批最值得下载的几何是什么？**
 
-This creates a circular dependency:
+在详细 tile / GLB 尚未到达时，客户端通常可以提前获得并使用：
+
+- frustum；
+- distance；
+- hierarchy；
+- geometric error / SSE；
+- cache state。
+
+但这些信息基本不包含“遮挡”这一维。
+
+于是出现一个天然的循环依赖：
 
 ```text
-visibility is useful for deciding what geometry to download
+为了决定哪些 geometry 值得下载，需要 visibility
                     ↑
                     │
-conventional visibility usually requires scene geometry
+传统 visibility 又往往依赖已经可用的 scene geometry
 ```
 
-The paper should name this **pre-geometry visibility**.
+本文将这一问题称为：
 
-## What the paper is NOT
+> **Pre-Geometry Visibility（几何下载前可见性）**
 
-Do not position the paper as:
+## 这篇论文不应该被写成什么
 
-- “a neural occlusion-culling network”;
-- “a faster NeuralPVS”;
-- “a new download scheduler”;
-- “a PointNet/GNN architecture”;
-- “a WebGPU optimization paper”.
+不要把论文主线写成：
 
-Those are components or consequences.
+- “一个神经遮挡剔除网络”；
+- “一个更快的 NeuralPVS”；
+- “一个新的下载调度器”；
+- “一个 PointNet/GNN 架构”；
+- “一个 WebGPU 优化工作”。
 
-## Strongest paper identity
+这些都只是组件或应用结果。
 
-**A compact geometry-compiled visibility representation with a scene-independent conservative decision boundary for pre-geometry Web streaming.**
+## 最强的论文身份
 
-The two core technical pieces are:
+> **一种面向 pre-geometry Web streaming 的紧凑 geometry-compiled visibility representation，并通过跨场景共享的保守决策边界使其可以直接部署。**
 
-1. **GCOF representation** — geometry-only scene context is compiled offline into a compact structured field that can be queried without the detailed target geometry.
-2. **Shared conservative boundary learning** — the same zero-logit boundary is trained to have a safety-oriented meaning across heterogeneous scenes/domains.
+技术主体实际上有两个：
 
-The Web streaming pipeline demonstrates why these two properties matter.
+1. **GCOF 表征**：把局部几何和纯几何遮挡上下文离线编译成紧凑、可连续查询的结构化方向场；
+2. **Shared conservative boundary learning**：使相同的零 logit 决策边界在不同场景/风险域上保持保守安全语义。
 
-## Novelty boundary
+Web streaming 是最能说明这两个性质价值的系统场景。
 
-Do not claim:
+## Novelty 边界
 
-- visibility-guided streaming is new;
-- neural visibility is new;
-- from-region PVS is new;
-- metadata-driven pre-content selection is new.
+不要声称以下事情本身是新的：
 
-Existing work already covers each of these individually.
+- visibility-guided streaming；
+- neural visibility；
+- from-region PVS；
+- 基于 lightweight metadata 的 pre-content selection。
 
-The claim is the intersection:
+已有工作分别覆盖了这些方向。
+
+真正要强调的是它们的交叉：
 
 ```text
 learned visibility
 + from-region query
 + geometry-only scene compilation
-+ client-side query before detailed geometry residency
++ detailed geometry residency 之前的 client-side query
 + shared conservative boundary
 + progressive Web delivery
 ```
 
-## Contribution hierarchy
+## 建议的贡献层级
 
-### Contribution A — Problem formulation
+### Contribution A — 问题定义
 
-Pre-geometry from-region visibility for progressive Web3D.
+提出并系统研究 **pre-geometry from-region visibility**。
 
-### Contribution B — Representation
+### Contribution B — 表征
 
-Geometry-only local descriptors + potential-occluder relations are compiled into a compact 4×7 structured directional survival field.
+把 geometry-only local descriptor 与 potential-occluder relations 编译成一个紧凑的 4×7 structured directional survival field。
 
-### Contribution C — Learning objective
+### Contribution C — 学习目标
 
-A fixed zero boundary is made conservative across heterogeneous domains using an efficiency objective under a domain-robust safety constraint.
+设计共享的零决策边界，并通过 domain-robust safety constraint 使其在多个场景/结构域上保持保守。
 
-### Contribution D — System evidence
+### Contribution D — 系统验证
 
-The signal is integrated with resource-level streaming and evaluated in terms of safety, culling efficiency, representation cost, runtime cost and progressive-delivery utility.
+将该信号接入资源级 progressive streaming，并从 safety、culling efficiency、资产大小、runtime、streaming utility 等角度验证。
 
-## Key reviewer question the whole paper must answer
+## 整篇论文必须回答的 reviewer 问题
 
-> Why should the client download this visibility asset instead of simply downloading coarse geometry and running a conventional visibility method?
+> **为什么客户端要先下载这个 visibility asset，而不是直接下载 coarse/proxy geometry 再运行 HZB 或其他 conventional PVS？**
 
-The paper must therefore compare:
+因此最终实验必须在尽可能公平的前提下比较：
 
-- startup bytes;
-- runtime cost;
-- candidate-count scaling;
-- safety;
-- useful culling;
-- streaming benefit;
-
-against geometry-resident/proxy alternatives such as HZB where possible.
+- startup bytes；
+- runtime cost；
+- candidate-count scaling；
+- safety；
+- useful culling；
+- progressive streaming benefit。
