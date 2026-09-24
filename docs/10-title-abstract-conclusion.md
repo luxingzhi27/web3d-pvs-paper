@@ -1,132 +1,102 @@
-# 10 — 标题、摘要与结论规划
+# 10 — 标题、摘要与结论规划（降低训练机制在主叙事中的权重）
 
 ## 标题候选
 
-### 候选 1：问题优先
+### 当前首选
 
 **Pre-Geometry Visibility for Progressive Web3D via Geometry-Compiled Occlusion Fields**
 
-优点：
+为什么更合适：
 
-- 一眼说明 research problem；
-- 不在标题里过度承诺 generalization；
-- “Pre-Geometry Visibility”有机会成为论文自己的术语。
+- headline 是 research operating point；
+- 第二部分是核心 method insight；
+- 没把某个训练技巧写进标题；
+- 不提前过度承诺 generalization。
 
-这是当前最推荐的方向。
-
----
-
-### 候选 2：方法名优先
+### 方法名版本
 
 **GCOF-PVS: Geometry-Compiled Occlusion Fields for Pre-Geometry Visibility in Progressive Web3D**
 
-优点：
-
-- 建立 GCOF-PVS 方法名；
-- 方便之后引用/复现。
-
-缺点：
-
-- 标题略长；
-- 如果论文最终最强的是问题定义而非方法品牌，候选 1 更自然。
+如果后续希望建立方法名，可以使用。
 
 ---
 
-### 候选 3：更一般的 graphics 表述
+# Abstract 的推荐逻辑
 
-**Geometry-Compiled From-Region Visibility Before Content Residency**
+参考顶会图形学论文，不要把摘要写成所有实现组件的压缩版。
 
-优点：
+## 1. 背景 / Task
 
-- 方法定位更 general。
+From-region visibility 对 progressive / streaming rendering 很有价值。
 
-缺点：
+## 2. Gap
 
-- Web3D / streaming motivation 弱化。
+当前 PVS 方法通常假设 visibility computation 可以访问一份 scene representation；但在 progressive Web delivery 中，detailed geometry 可能正是尚未 resident 的内容。
 
----
-
-# Abstract 的六步逻辑
-
-摘要不要按照：
-
-> 网络 A → 模块 B → loss C → 实验 D
-
-流水账写。
-
-建议固定成六步。
-
-## 1. Context
-
-大型 Web3D 场景需要 progressive delivery。
-
-## 2. Problem
-
-现有 visibility algorithms 通常假设 scene representation 已经可访问；但 streaming client 恰恰希望在 detailed geometry residency 之前就知道哪些 geometry 值得优先请求。
-
-## 3. Formulation
+## 3. Key Idea
 
 提出：
 
-> pre-geometry from-region visibility。
+> geometry-compiled pre-geometry visibility。
 
-## 4. Method
+把 detailed scene geometry 离线编译成 compact client-queryable visibility representation。
 
-一句话概括：
+## 4. Method Overview
 
-> shared geometry encoder + geometry-only potential-occluder relations → compact structured directional field → lightweight region query。
+一句话：
 
-不要在摘要里塞：
+> local geometry + geometry-only occlusion context → compact directional field → lightweight region query.
 
-- 256；
-- 12×8；
-- 4×7；
-- 52→32→1。
+不要塞所有维度。
 
-## 5. Training
+## 5. Conservative PVS
 
-强调：
+只用一句：
 
-> shared conservative zero boundary across heterogeneous domains。
+> The model is trained with a safety-oriented objective that reflects the asymmetric cost of missing visible content.
 
-这是 V5 与普通 classifier 很不一样的部分。
+除非 shared-zero-boundary 最终成为非常强的结果，否则 Abstract 不需要解释 fixed zero / calibration / SmoothMax。
 
-## 6. Evidence
+## 6. Results
 
-摘要最后只写最终已经完成的 headline evidence：
+最终只写：
 
 - safety；
-- useful culling；
-- cross-scene transfer；
-- runtime / asset cost；
-- streaming benefit。
-
-在实验没完成前不要预填数字。
+- culling efficiency；
+- asset / runtime cost；
+- streaming utility；
+- unseen-scene transfer（如果 formal evidence 足够）。
 
 ---
 
 # Conclusion 的逻辑
 
-结论不要复述所有网络层。
+回到最初问题：
 
-应该重新回到最开始的系统矛盾：
+> Progressive delivery needs relevance before detailed content residency.
 
-> Conventional visibility becomes available after scene geometry is present, whereas progressive delivery benefits from visibility before that point.
-
-然后用一句 pipeline 总结：
+核心 takeaway：
 
 ```text
-geometry-only scene context
-    ↓
-compact compiled visibility asset
-    ↓
-shared conservative query
+scene geometry
+    ↓ offline
+compact visibility representation
+    ↓ client query
+occlusion-aware relevance
     ↓
 progressive delivery
 ```
 
-结尾可以考虑更 general 的一句：
+训练 objective、网络层数、anchor 数都不要在结论里重复。
 
-> visibility can be treated as a streamable scene representation in its own right.
+如果最终 system evidence 足够强，可以用：
 
-但只有在最终资产大小、runtime 和 streaming 实验都足够强时再保留。
+> Visibility can itself be treated as a compact streamable scene representation.
+
+作为最后一句。
+
+这句话比：
+
+> “our robust zero-boundary objective works well”
+
+更适合整篇论文的最终 takeaway。
