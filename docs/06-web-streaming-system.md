@@ -1,220 +1,243 @@
-# 06 — Progressive Web3D Integration（Web 渐进式传输集成）
+# 06 — Progressive Web3D Integration（统一为 Unit-Level Visibility）
 
 ## 本节目标
 
-这一节要证明：
+这一节只回答：
 
-> GCOF-PVS 的 representation 不是为了单纯做一个离线分类 benchmark，而是为“客户端在 detailed geometry residency 之前做 occlusion-aware content decision”设计的。
+> **unit-level regional visibility prediction 如何在浏览器端参与剔除与渐进式内容选择？**
 
-同时要避免把 scheduler 本身包装成主要算法创新。
+论文核心方法不讨论：
+
+- 一个文件包含多少 units；
+- 一个 unit 属于哪个 GLB；
+- instance-to-resource aggregation；
+- 底层资源打包策略。
+
+这些都是具体系统实现问题，不属于 visibility 方法本身。
 
 ---
 
 # 6.1 Offline Scene Compilation
 
-对于一个新场景：
+对一个新场景：
 
 ```text
-detailed geometry
-   ├─ surface sampling
+scene geometry
+   ├─ local surface sampling
    │      ↓
    │     z_i
    │
-   └─ AABBs
+   └─ unit AABBs
           ↓
-   proxy relation graph
+   geometry-only proxy relation graph
           ↓
    frozen shared compiler
           ↓
       field C_i
           ↓
-  runtime visibility asset
+ compact visibility asset
 ```
 
 核心 deployment property：
 
-> 新场景的 visibility asset 由 geometry-only preprocessing + frozen shared model 生成，不需要 target-scene visibility labels，也不需要 target-specific fine-tuning。
-
-这一点是 V5 与普通 scene-specific PVS database / visibility distillation 的重要区别。
+> visibility asset 由 geometry-only preprocessing + frozen shared model 得到，不需要 target-scene visibility labels，也不需要 target-specific fine-tuning。
 
 ---
 
-# 6.2 Browser Runtime
+# 6.2 Runtime View-Cell Establishment
 
-浏览器最终只需要：
+前端输入：
 
-- compact per-unit geometry descriptor；
-- 4×7 structured field；
-- AABB / unit metadata；
-- unit → resource mapping；
-- shared lightweight query-head weights。
+- current camera position；
+- current camera orientation；
+- 场景登记的 horizontal-disk radius；
+- camera projection parameters。
 
-浏览器不运行：
+以当前相机建立 view-cell anchor。
 
-- 256-point geometry encoder；
-- proxy relation graph builder；
-- relation compiler。
+论文统一采用：
 
-运行时链路：
+> **固定方向 + 水平圆盘**
+
+而不是 oriented box / cube。
+
+只要相机仍位于该圆盘内，且方向与投影参数仍满足当前 region contract，可以复用该次 regional prediction。
+
+当：
+
+- 相机走出圆盘；
+- orientation 改变到需要重新建立 region；
+- projection contract 改变；
+
+则重新 query。
+
+---
+
+# 6.3 Candidate Generation
+
+从当前 view-cell center 沿当前观察方向后退：
+
+[
+\Delta
+=
+\frac{r}{\tan30^circ}.
+]
+
+在后退位置建立：
+
+[
+66^circ
+]
+
+candidate frustum，并对 unit AABB 做 frustum test。
+
+得到 candidate units：
+
+[
+\mathcal C(\mathcal B).
+]
+
+candidate generation 与 model prediction 分开：
+
+> 模型只对 candidate units 做一次 batched query。
+
+---
+
+# 6.4 One Batched Regional Visibility Query
+
+前端不会：
+
+- 渲染离线 32 个 GT cameras；
+- 为 9 个 V5 support points 分别运行完整网络。
+
+实际 runtime 是：
 
 ```text
-current view-cell
-    ↓
 candidate units
     ↓
-9 support analytic field query
+one batched V5 query
     ↓
-visibility logits
+per-unit visibility scores
 ```
 
-论文最终必须报告：
+V5 内部的 9 个 points 只是：
 
-> 实际导出 runtime asset 的真实字节数。
+> 对 structured field 的 analytic support evaluations。
 
-不能只拿 FP16 理论估算冒充最终资产大小。
+因此：
 
----
-
-# 6.3 Instance-to-Resource Aggregation
-
-模型预测单位是 instance / renderable unit，但网络下载单位往往是 GLB/resource。
-
-如果多个实例映射到同一 GLB，可以采用：
-
-[
-p_g
-=
-\max_{i:g(i)=g}
-p_i.
-]
-
-直觉：
-
-> 只要同一资源中的任意一个实例当前高度可见，下载这个资源就可能有收益。
-
-最终论文必须以实际 implementation 的 aggregation rule 为准。
+```text
+32 = offline GT rendering samples
+ 9 = V5 internal analytic supports
+ 1 = runtime batched model query
+```
 
 ---
 
-# 6.4 Filtering 与 Ranking 必须分开
+# 6.5 Regional PVS 与 Instantaneous Rendering
 
-这是系统评价里非常重要的概念边界。
+模型预测的是：
 
-## Threshold Filtering
+> 当前 horizontal-disk view-cell 的 regional PVS / visibility scores。
 
-使用：
+使用冻结 decision rule 后得到 predicted potentially visible units：
 
-- fixed zero；
-- 或冻结的 safe threshold；
+[
+\widehat{\mathrm{PVS}}(\mathcal B).
+]
 
-输出：
+然后使用当前真实：
 
-> 哪些 candidate resource 可以 defer / filter。
+[
+60^circ
+]
 
-评价：
+display frustum 进一步过滤当前帧需要处理的 units。
 
-- retained GLB count；
-- retained bytes；
-- coverage ceiling；
-- visible utility miss。
+因此 runtime 语义是：
 
-## Threshold-Free Ranking
+```text
+66° regional candidate / PVS
+        ↓
+predicted potentially visible units
+        ↓
+current real 60° display frustum
+        ↓
+instantaneous units to render/process
+```
 
-完全不先过滤 candidate set。
+这里要强调：
 
-而是：
+> regional visibility 与 current-frame visibility 不是同一个集合。
 
-> 在同一个 candidate GLB 集合上改变下载顺序。
-
-评价：
-
-- Bytes@95；
-- Bytes@99；
-- Bytes@99.9；
-- waste-before-99；
-- bandwidth-converted time。
-
-不能把一个已经 threshold-filtered 的小集合拿去和完整集合的 ranking baseline 比较。
+regional PVS 是为了在一段局部相机运动范围内保持保守与可复用。
 
 ---
 
-# 6.5 Cost-Aware Priority
+# 6.6 用于 Progressive Content Selection
 
-系统还可以使用：
-
-[
-\frac{p_g}{B_g^\alpha}.
-]
-
-其中：
-
-- (p_g)：visibility relevance；
-- (B_g)：resource bytes；
-- (alpha)：cost sensitivity。
-
-论文必须同时报告：
-
-### Pure visibility
+每个 candidate unit 得到一个 visibility score：
 
 [
-p_g.
+s_i.
 ]
 
-### Cost-aware visibility
+该信号可以用于：
 
-[
-p_g/B_g^\alpha.
-]
+### Conservative culling / defer
 
-这样才能区分：
+根据冻结边界判断：
 
-> 收益来自 visibility 预测，
+- keep；
+- defer / cull。
 
-还是：
+### Progressive ordering
 
-> 只是因为偏爱小文件。
+在 candidate units 中优先处理：
 
-(alpha) 必须在 validation 上选定，不能看 test。
+> visibility relevance 更高的单位。
+
+论文的核心结论只需要证明：
+
+> **pre-geometry unit-level visibility signal 能改善 progressive delivery。**
+
+至于具体工程系统最终如何把 units 打包成文件，不属于方法定义。
 
 ---
 
-# 6.6 与 3D Tiles / Web Selection 的关系
+# 6.7 与现代 Web Selection 的关系
 
-GCOF-PVS 不应该被写成替代：
+GCOF-PVS 不替代：
 
-- frustum；
-- hierarchy；
+- frustum culling；
+- spatial hierarchy；
 - SSE / geometric error；
 - cache policy；
-- 3D Tiles traversal。
+- streaming scheduler。
 
-而是补充一个现有 pre-content metadata 通常缺少的信号：
+它补充的是：
 
-> **occlusion-aware relevance before detailed content residency**
+> **occlusion-aware unit relevance before detailed content residency**
 
-可以把现代 Web selection 理解为：
+更合理的系统关系是：
 
 ```text
 camera
-+ bounding volumes
-+ hierarchy
-+ SSE
-+ cache
-    ↓
-candidate resources
++ hierarchy / frustum / coarse metadata
+        ↓
+candidate units
+        ↓
+GCOF-PVS
+        ↓
+unit-level occlusion-aware relevance
+        ↓
+culling / progressive ordering
 ```
 
-GCOF-PVS 在 candidate selection / scheduling 中增加：
+因此本文的系统贡献应表述为：
 
-```text
-compact occlusion metadata
-+ view region
-    ↓
-visibility relevance
-```
+> 为 Web progressive rendering 提供一个 unit-level、pre-geometry、from-region visibility signal。
 
-因此它更适合作为：
+而不是：
 
-> 可插拔的 visibility signal，
-
-而不是重写整个 Web streaming stack。
+> 设计一个新的文件级调度框架。
