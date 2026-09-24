@@ -1,960 +1,520 @@
 # 论文总体大纲
 
-## 暂定标题
+## 暂定题目
 
-**Pre-Geometry Visibility for Progressive Web3D via Geometry-Compiled Occlusion Fields**
+**Pre-Geometry Visibility for Progressive Web3D via Geometry-Compiled Occlusion Fields**  
+**面向渐进式 Web3D 的几何编译遮挡场与几何下载前可见性预测**
 
-## 核心问题
+本文档为中文详细大纲，按正文顺序组织研究内容、数学定义及图表位置。图像均采用占位符，正式实验数值待结果冻结后填写。整体架构图与生存场架构图分别编号为图 2、图 3；数据采样与后退视锥示意图暂不纳入正文。
 
-大型 Web3D 场景需要渐进式传输，但传统遮挡可见性计算通常依赖已经可访问的场景表示。本文研究：
+## 摘要
 
-> **如何在 detailed geometry 尚未 resident 于客户端时，为当前局部观察区域预测 unit-level from-region visibility，并将其用于安全剔除与 progressive delivery？**
+大规模 Web3D 场景采用渐进式传输，以降低交互启动阶段的数据加载开销。遮挡信息能够辅助内容选择，但依赖场景几何的在线可见性计算难以直接用于详细几何尚未到达客户端的阶段。本文研究几何下载前的区域潜在可见性预测，并提出 Geometry-Compiled Occlusion Fields（GCOF-PVS）。该方法在离线阶段联合编码可独立剔除单元的局部表面几何及周围潜在遮挡关系，将场景上下文编译为紧凑的方向生存场。在线阶段通过少量解析支持点查询提取区域遮挡统计量，并结合局部几何描述符与相机参数预测单元可见性。训练目标针对可见内容误剔与不可见内容冗余保留的非对称代价，在提高剔除效率的同时约束可见内容遗漏。评价覆盖区域可见性、表征与目标消融、跨场景迁移、运行与存储开销，以及固定带宽下的渐进式传输效果。
 
-核心方法是把 scene occlusion context 在离线阶段编译成 compact、client-queryable visibility representation。
+**结果占位：** 可见性安全性与剔除效率［待填写］；跨场景迁移结果［待填写］；客户端查询与资产开销［待填写］；渐进式传输收益［待填写］。
 
----
-
-# 1. Introduction
-
-## 1.1 背景
-
-说明大规模 Web3D 无法在交互开始前完整下载，客户端需要持续进行：
-
-- candidate selection；
-- culling；
-- progressive content ordering。
-
-现有 pre-download selection 通常依赖：
-
-- frustum；
-- distance；
-- hierarchy；
-- SSE / geometric error。
-
-这些信号能够估计几何重要性，但通常缺少 occlusion-aware relevance。
-
-## 1.2 From-Region Visibility 的意义
-
-说明 from-region PVS 相比单视点 visibility 更适合：
-
-- camera motion；
-- prefetching；
-- remote rendering；
-- progressive rendering。
-
-本文预测的不是当前单一 camera 的瞬时 visible set，而是一个局部 view-cell 内的 potentially visible units。
-
-## 1.3 Pre-Geometry Visibility Gap
-
-已有 precomputed PVS、online PVS 和 learned PVS 已显著降低可见性计算成本，但通常假设 visibility processor 可以访问足够表达遮挡关系的 scene representation。
-
-Web progressive delivery 中存在不同的约束：
-
-~~~text
-visibility helps decide what content is useful
-                     ↑
-detailed scene content may not be resident yet
-~~~
-
-据此提出本文的 operating point：
-
-> **pre-geometry from-region visibility**
-
-即在 detailed geometry residency 之前获得 occlusion-aware regional visibility。
-
-## 1.4 核心思想
-
-离线内容构建阶段拥有完整场景，因此可以预先分析 geometry-dependent occlusion context，并将其编译为紧凑表示：
-
-~~~text
-scene geometry
-      ↓
-offline occlusion compilation
-      ↓
-compact visibility asset
-      ↓
-client-side view-cell query
-      ↓
-unit-level visibility score
-~~~
-
-运行时客户端无需重新执行完整场景遮挡分析。
-
-## 1.5 方法概览
-
-简要介绍 GCOF-PVS：
-
-1. 编码 unit local surface geometry；
-2. 构造 surrounding potential-occluder relations；
-3. 聚合 directional occlusion evidence；
-4. 编译为 continuous directional survival field；
-5. 对当前 horizontal-disk view-cell 做 analytic region query；
-6. 结合 local geometry、regional occlusion statistics 和 query geometry 输出 visibility score。
-
-## 1.6 主要贡献
-
-建议最终压缩为三点：
-
-1. **Pre-Geometry From-Region Visibility**  
-   提出面向 progressive Web3D 的 visibility operating point，使客户端在 detailed geometry residency 之前获得 unit-level occlusion relevance。
-
-2. **Geometry-Compiled Occlusion Representation**  
-   将 local geometry 与 surrounding occlusion context 编译成 compact directional survival field，并支持连续方向和区域查询。
-
-3. **Systematic Evaluation for Progressive Web3D**  
-   从 visibility safety/efficiency、representation ablation、cross-scene transfer、runtime/storage cost 与 progressive delivery 评估方法。
+**关键词：** 区域可见性；潜在可见集；遮挡剔除；神经场；Web3D；渐进式传输。
 
 ---
 
-# 2. Related Work
+# 1. 引言（Introduction）
 
-Related Work 围绕“visibility 在什么时候、依赖什么 representation、由谁计算”组织，而不是按网络组件分类。
+## 1.1 渐进式场景访问与可见性需求
 
-## 2.1 Visibility Culling and From-Region PVS
+大规模 Web3D 场景的几何数据通常无法在交互开始前全部传输。客户端需要根据观察状态确定内容的请求顺序，并在有限带宽与内存条件下逐步恢复当前画面。视锥、距离、空间层次及屏幕空间误差能够提供内容选择依据，但处于视锥内、距离较近的单元仍可能被前景结构完全遮挡。因而，遮挡相关性是渐进式内容选择的重要补充信息。
 
-### Classical Runtime Occlusion Culling
+区域潜在可见集（from-region potentially visible set，PVS）描述一个观察区域内可能出现的内容。相较于单视点可见性，它能够覆盖局部相机移动引起的显露变化，为内容预取和区域内结果复用提供依据。
 
-简要介绍：
+## 1.2 几何下载前的可见性问题
 
-- HZB；
-- hardware occlusion query；
-- CHC 类方法。
+预计算 PVS 将可见性分析移至离线阶段，在线 PVS 则利用已有场景表示执行区域查询。学习式方法进一步以神经网络近似可见性计算。这些方法分别在存储、预处理和查询开销之间取得不同平衡，但详细内容尚未到达的 Web 客户端仍需要一个可直接使用的遮挡相关性表示。
 
-作用是建立标准 geometry-resident runtime visibility 情形。
+本文关注的约束是：客户端执行可见性查询时，待选择内容的详细几何尚未驻留。离线内容构建阶段可以访问完整几何及可见性监督；运行时则仅使用提前传输的紧凑资产。该设置将可见性表示的生成与详细场景内容的传输分离。
 
-### Precomputed From-Region PVS
+## 1.3 方法概述
 
-讨论：
+GCOF-PVS 以可独立剔除单元为基本对象，分别描述目标自身形状和周围潜在遮挡关系。共享编译器将方向相关的场景上下文压缩为低阶方向生存场。该场以连续方向和归一化距离为查询变量，通过解析求值形成区域统计量，再由轻量预测头输出单元级可见性分数。
 
-- Teller & Séquin；
-- visibility preprocessing；
-- Adaptive Global Visibility Sampling 等。
+离线阶段承担几何编码与遮挡上下文聚合，客户端仅保留紧凑单元表示及共享查询模型。预测分数分别服务于区域 PVS 过滤和渐进式内容排序；保守训练目标用于控制可见单元被错误剔除的风险。
 
-强调：
+## 1.4 主要贡献
 
-> 传统方法可以把大量 geometry reasoning 移到 offline stage，但通常得到 view-cell-specific PVS 或相关预计算结果。
+1. 面向渐进式 Web3D，构建详细几何到达客户端之前的区域可见性预测框架，将遮挡相关性作为可提前传输、可在线查询的场景表示。
+2. 提出几何编译方向生存场，联合局部表面几何与潜在遮挡关系，以紧凑系数表示方向—距离相关的遮挡响应，并支持轻量区域查询。
+3. 建立统一的单元级评价体系，分析可见性安全性、剔除效率、既有三组消融、跨场景迁移及渐进式传输中的运行成本与应用收益。
 
-### Online From-Region PVS
+### 配图：图 1——应用效果概览
 
-重点讨论：
+> **［图 1 占位：相同传输预算下的渐进式场景恢复］**  
+> 文件：`paper/figures/fig01-teaser.png`。
 
-- Camera Offset Space；
-- Guided Visibility Sampling++；
-- Trim Regions；
-- Disocclusion Buffer。
+<!-- 上传后启用：![图1 应用效果概览](../paper/figures/fig01-teaser.png) -->
 
-比较维度：
+**图面内容：** 同一场景、相机与传输预算下的基线画面、本文方法画面及完整参考画面；配合一处遮挡区域局部放大，展示已到达的可见内容与缺失内容。图中附实际传输量和可见贡献覆盖率，不使用示意数字替代实验结果。
 
-- runtime scene representation；
-- preprocessing；
-- query region；
-- GPU/runtime cost。
-
-本节收束到：
-
-> 现代 PVS 已经可以高效在线计算；本文关注的是 visibility computation 发生在 detailed content residency 之前这一不同 operating point。
-
-## 2.2 Learned Visibility Representations
-
-### NeuralPVS
-
-作为最重要的 learned-PVS comparison。
-
-重点比较：
-
-~~~text
-NeuralPVS:
-runtime geometry representation
-        ↓
-neural from-region PVS
-~~~
-
-与：
-
-~~~text
-GCOF-PVS:
-offline scene compilation
-        ↓
-compact visibility representation
-        ↓
-runtime region query
-~~~
-
-核心区别是 geometry 在 pipeline 中何时参与，而不是简单比较网络速度。
-
-### Neural Visibility of Point Sets
-
-作为 per-element learned visibility 的相关工作，说明 visibility classification 本身不是本文 novelty。
-
-### NVGS
-
-重点比较：
-
-- render-time primitive visibility；
-- pre-geometry from-region visibility。
-
-共同点是将 visibility knowledge 编码成轻量可查询表示；主要区别是任务 granularity 和 runtime operating point。
-
-## 2.3 Visibility-Aware Streaming
-
-讨论：
-
-- server-side/networked PVS；
-- Smart Visible Sets；
-- Streaming QSplat；
-- View-Dependent Progressive Meshes；
-- Streaming HLODs；
-- Fine-Grained Web3D Pipeline；
-- 3D Tiles。
-
-说明：
-
-> visibility-guided delivery 本身并不是新的。
-
-本文的研究重点是：
-
-> **如何在 detailed content residency 之前获得 client-queryable occlusion signal。**
+**图注：** 相同内容传输预算下的渐进式场景恢复。各方法使用相同候选单元与初始缓存状态，仅改变内容优先级。参考画面由完整场景生成，局部放大区域显示可见内容的恢复情况。
 
 ---
 
-# 3. Method
+# 2. 相关工作（Related Work）
 
-本节是论文技术核心。
+## 2.1 遮挡剔除与区域潜在可见集
+
+HZB 与相干遮挡查询代表几何已驻留条件下的运行时遮挡剔除。Teller 与 Séquin 的可见性预处理、Adaptive Global Visibility Sampling 等工作则将区域可见性预先计算并存储。Camera Offset Space、Guided Visibility Sampling++、Trim Regions 与 Disocclusion Buffer 进一步发展了在线区域 PVS 计算。
+
+该部分从查询输入、可见性计算位置、区域表示、预处理需求及运行时数据结构比较上述方法。本文与传统预计算 PVS 共同采用离线准备，但存储对象是可连续查询的单元表示，而非逐观察区域枚举的可见集合；与在线几何方法的区别则在于客户端查询所需的数据内容。
+
+## 2.2 学习式可见性表示
+
+NeuralPVS 利用视锥体素化的场景表示估计区域 PVS，是本文主要的学习式可见性参照。Neural Visibility of Point Sets 研究逐元素可见性预测；NVGS 面向 Gaussian 的渲染时可见性与剔除。相关工作的比较集中于元素粒度、单点或区域查询、场景表示在推理阶段的参与方式，以及模型与场景资产的关系。
+
+GCOF-PVS 将场景上下文编译前置到内容准备阶段，在线输入为紧凑单元资产和当前观察区域。表征设计的重点是可传输性、连续查询能力与保守预测，而非单独以网络规模区分已有方法。
+
+## 2.3 可见性感知的三维内容传输
+
+网络化 PVS、Smart Visible Sets、Streaming QSplat、视点相关渐进网格和 Streaming HLODs 已将可见性或视觉重要性用于选择性传输。Web3D 流水线与 3D Tiles 则利用场景层次、包围体和误差元数据组织内容请求。
+
+本文在上述传输机制中提供可于详细几何到达前查询的遮挡信号。可见性分数作为单元选择与排序依据，与视锥、层次结构和误差控制互补。
+
+**图表配置：** 本节不另设架构图。表 1 汇总代表方法的查询输入、预处理资产、计算位置、可见性粒度和流式应用方式。文献条目由[核心文献文档](../references/core-literature.md)及其原始来源整理。
 
 ---
 
-## 3.1 Problem Setting and View-Cell Protocol
+# 3. 方法（Method）
 
-### Renderable Unit
+## 3.1 任务定义与总体框架
 
-场景统一划分为可独立剔除的 renderable units：
+场景由可独立剔除的单元集合 $\mathcal U=\{u_i\}_{i=1}^{N}$ 构成。BIM 场景采用构件作为单元，标准图形学场景采用固定划分规则生成单元。每个单元具有标识、包围体和表面几何。
+
+观察区域由中心 $\mathbf c$、水平圆盘半径 $r$、固定相机方向与投影参数定义。圆盘位于世界 $X$–$Z$ 平面：
 
 $$
-\mathcal U=\{u_i\}_{i=1}^{N}.
-$$
-
-BIM 场景中 unit 为构件；标准图形学场景使用冻结 partition rule 生成 units。
-
-所有：
-
-- candidate；
-- GT；
-- prediction；
-- culling；
-
-均在 unit level 定义。
-
-### Horizontal-Disk View-Cell
-
-一个 view-cell 由：
-
-- region center；
-- fixed camera direction；
-- horizontal disk radius；
-- projection parameters；
-
-共同定义。
-
-离线数据协议在每个 physical center 上展开：
-
-- yaw：$0^\circ,90^\circ,180^\circ,270^\circ$；
-- pitch：$-15^\circ,0^\circ,15^\circ$；
-
-共 12 个数据方向。
-
-这些方向只用于训练与评价覆盖，runtime camera 不需要吸附到这些方向。
-
-### Regional Ground Truth
-
-每个 view-cell 在水平圆盘内使用 32 个 camera positions 做 Color-ID rendering。
-
-regional PVS：
-
-$$
-\mathrm{PVS}(\mathcal B)
+\mathcal B(\mathbf c,r)
 =
-\bigcup_{m=1}^{32}V(c_m).
+\left\{\mathbf x:\ (x_X-c_X)^2+(x_Z-c_Z)^2\le r^2,\ x_Y=c_Y\right\}.
 $$
 
-因此 GT 表示：
-
-> sampled region 内至少一个 camera position 能看到该 unit。
-
-visual weight 使用 32 个 sampled views 中的最大屏幕贡献。
-
-### Candidate Generation
-
-从 region center 沿观察方向后退：
+模型对候选集合 $\mathcal C(\mathcal B)$ 中的单元预测区域可见性分数。离线编译阶段输出局部描述符 $z_i$ 和方向场系数 $F_i$；在线阶段生成区域统计量 $s_i$ 与查询几何 $q_i$，由共享预测头产生 logit $\xi_i$：
 
 $$
-\Delta
-=
-\frac{r}{\tan 30^\circ},
+(z_i,F_i)=\operatorname{Compile}(u_i,\mathcal N_i),
+\qquad
+\xi_i=f_{\Theta}(z_i,s_i,q_i).
 $$
 
-使用 $66^\circ$ AABB frustum 构造 candidate units。
+其中 $\mathcal N_i$ 表示目标周围的潜在遮挡上下文。$z_i$ 始终表示几何描述符，$\xi_i$ 始终表示最终可见性 logit。
 
-candidate 必须独立于 GT 生成，并检查 sampled GT visible units 被 candidate set 覆盖。
+### 配图：图 2——整体架构
+
+> **［图 2 占位：整体架构图，使用已制作的整体架构版本］**  
+> 文件：`paper/figures/fig02-overall-framework.png`。
+
+<!-- 上传后启用：![图2 GCOF-PVS整体架构](../paper/figures/fig02-overall-framework.png) -->
+
+**图面内容：** 左侧为单元表面输入、共享几何编码器和关系编译器；中间为紧凑资产；右侧为圆盘区域查询、查询几何构造及可见性预测。图中分别显示 $z_i$ 到预测头、$F_i$ 到解析查询的传输路径，以及相机与目标元数据到 $q_i$ 的路径。简单网络以概念模块表示，张量尺寸仅标注关键表示。
+
+**图注：** GCOF-PVS 的离线编译与在线查询。共享编码器生成 $z_i\in\mathbb R^{32}$，关系编译器生成方向响应 $A_i\in\mathbb R^{12\times7}$，经固定投影得到 $F_i\in\mathbb R^{4\times7}$。客户端读取紧凑资产，在水平圆盘的九个支持点上解析求值，形成 $s_i\in\mathbb R^4$。相机、观察区域与目标相对几何构成 $q_i\in\mathbb R^{16}$；预测头联合 $z_i,s_i,q_i$ 输出单元分数，用于区域过滤和渐进式排序。九个支持点仅用于解析计算，不产生额外渲染视图。
+
+## 3.2 局部表面几何编码
+
+每个单元固定采样 256 个表面点，每点由归一化位置与法向组成。共享逐点网络提取特征，经最大池化和均值池化后，与三个尺寸比例拼接，生成局部描述符：
+
+$$
+z_i=E_{\Theta}(P_i,\mathbf a_i)\in\mathbb R^{32}.
+$$
+
+其中 $P_i\in\mathbb R^{256\times6}$，$\mathbf a_i\in\mathbb R^3$ 为尺寸比例。当前逐点网络为 $6\rightarrow32\rightarrow64\rightarrow64$，池化后的单元网络为 $131\rightarrow64\rightarrow32$。该描述符编码目标形状，同时作为周围单元参与关系聚合时的几何输入。
+
+**配图位置：** 对应图 2 的共享编码器部分；池化特征与尺寸比例采用拼接，网络层宽列入实现说明，不另设网络结构图。
+
+## 3.3 潜在遮挡关系与方向响应编译
+
+以目标单元为中心设置 12 个正二十面体方向锚点。沿每个方向对单元 AABB 进行正交投影，根据投影重叠、相对深度和尺度归一化间距选择最多八个潜在遮挡单元。锚点是模型内部的方向采样，与数据集中的相机方向配置相互独立。
+
+设目标与来源单元的中心分别为 $\mathbf o_i,\mathbf o_j$，尺度为 $\rho_i,\rho_j$。关系特征 $e_{ijk}\in\mathbb R^8$ 包含三维相对方向、对数归一化距离、对数尺度比、两种投影重叠比例及归一化深度间隔。
+
+共享消息网络同时接收目标描述符、来源描述符与关系特征：
+
+$$
+m_{ijk}=\operatorname{MLP}_{e}([z_i,z_j,e_{ijk}]),
+\qquad
+h_{ik}=\sum_{j\in\mathcal N_{ik}}\alpha_{ijk}m_{ijk}.
+$$
+
+注意力权重在同一目标—方向组内归一化。邻居数量和投影重叠总量作为附加统计，保留平均聚合中可能损失的关系规模信息。
+
+每个方向的输出由目标自身的基础响应和关系修正构成：
+
+$$
+a_{ik}=b_{\Theta}(z_i,\boldsymbol\omega_k)
++\mathbf1[|\mathcal N_{ik}|>0]\,\delta_{\Theta}(h_{ik},n_{ik},o_{ik},\boldsymbol\omega_k).
+$$
+
+十二个七维响应组成 $A_i\in\mathbb R^{12\times7}$。这些响应是后续生存函数参数的原始值，而非十二个可见性概率。
+
+**配图位置：** 图 3 左侧显示目标中心球面、方向锚点、潜在遮挡体及关系聚合；目标与来源描述符均具有明确输入连线。
+
+## 3.4 几何编译方向生存场
+
+### 3.4.1 连续方向参数化
+
+离散方向响应投影至固定一阶方向基：
+
+$$
+\phi(\boldsymbol\omega)=[1,\omega_x,\omega_y,\omega_z],
+\qquad
+\Phi_{k,:}=\phi(\boldsymbol\omega_k).
+$$
+
+令 $\Phi\in\mathbb R^{12\times4}$，则场系数及任意单位方向的原始响应为：
+
+$$
+F_i=\Phi^{+}A_i\in\mathbb R^{4\times7},
+\qquad
+\eta_i(\boldsymbol\omega)=\phi(\boldsymbol\omega)F_i\in\mathbb R^7.
+$$
+
+固定伪逆执行低阶最小二乘投影，将 84 个锚点响应压缩为 28 个系数。投影一般不精确重建全部锚点响应；其作用是限制方向表达的复杂度，并形成连续查询接口。该方向为目标到查询位置的方向，不等同于相机自身的朝向。
+
+### 3.4.2 生存函数形式与参数含义
+
+方向生存场采用“随距离增加，尚未发生遮挡的响应不增加”的函数形式，作为遮挡上下文的结构化中间表示。记目标到查询位置的世界距离为 $\ell$，目标尺度为 $\rho_i$，归一化距离为：
+
+$$
+t=\log\left(1+\frac{\ell}{\rho_i}\right).
+$$
+
+原始方向响应 $\eta_i$ 经变换得到一个无命中质量、两个混合权重、两个位置参数及两个尺度参数：
+
+$$
+p_{\infty}=\operatorname{sigmoid}(\eta_0),
+\qquad
+(\pi_1,\pi_2)=\operatorname{softmax}(\eta_1,\eta_2),
+$$
+
+$$
+(\mu_1,\mu_2)=\operatorname{softplus}(\eta_{3:5}),
+\qquad
+(\sigma_1,\sigma_2)=0.02+\operatorname{softplus}(\eta_{5:7}).
+$$
+
+位置参数控制归一化距离上的主要过渡位置，尺度参数控制过渡宽度。两个分量提供不同距离尺度的平滑下降模式；它们不预设对应两个真实遮挡体。
+
+令 $\operatorname{sp}(x)=\log(1+e^x)$，两个零点截断并归一化的 logistic 生存分量为：
+
+$$
+g_j(t)=\exp\left[
+\operatorname{sp}\left(-\frac{\mu_j}{\sigma_j}\right)
+-\operatorname{sp}\left(\frac{t-\mu_j}{\sigma_j}\right)
+\right],\qquad j\in\{1,2\}.
+$$
+
+最终场响应为：
+
+$$
+S_i(\boldsymbol\omega,\ell)
+=p_{\infty}+(1-p_{\infty})\sum_{j=1}^{2}\pi_j\,
+ g_j\!\left(\log\left(1+\frac{\ell}{\rho_i}\right)\right).
+$$
+
+所有分量参数随查询方向变化。固定方向下，该函数满足：
+
+$$
+S_i(\boldsymbol\omega,0)=1,
+\qquad
+\frac{\partial S_i(\boldsymbol\omega,\ell)}{\partial\ell}\le0,
+\qquad
+\lim_{\ell\to\infty}S_i(\boldsymbol\omega,\ell)=p_{\infty}.
+$$
+
+上述性质约束的是中间场响应，而非最终单元可见性。生存场不是体素网格，也不是逐视点 PVS 表；它是以目标为中心、由有限系数表示的方向—距离函数。
+
+### 3.4.3 表征学习
+
+当前正式 V5 由最终 PVS 目标端到端训练生存场，不单独使用遮挡距离监督或 field-NLL。因而，场值不解释为经过标定的物理可见概率，位置参数也不直接等同于真实遮挡距离。该表征的作用是在有限资产容量下引入低阶方向结构、归一化距离和径向单调性。
+
+### 配图：图 3——生存场构建与区域查询
+
+> **［图 3 占位：生存场架构图，使用已制作的生存场版本］**  
+> 文件：`paper/figures/fig03-survival-field.png`。
+
+<!-- 上传后启用：![图3 方向生存场构建与查询](../paper/figures/fig03-survival-field.png) -->
+
+**图面内容：** 以目标中心球面展示十二个方向锚点及周围遮挡体；关系编译输出 $A_i$，固定投影输出 $F_i$；随后展示目标到查询点的方向、距离、生存曲线及圆盘支持点的区域汇总。关系编码器以单一模块呈现，资产包装细节由图 2 承担，不重复展开。
+
+**图注：** 方向生存场的编译与查询。潜在遮挡关系经共享编译器生成方向响应 $A_i$，固定一阶方向投影得到 $F_i$。任意目标到查询点的单位方向 $\boldsymbol\omega$ 与距离 $\ell$ 经解析函数得到生存响应。该响应在固定方向上关于距离单调不增，并在零距离处为一。圆盘中心及八个圆周支持点的响应汇总为 $s_i$，作为最终可见性预测的区域特征。曲线示意表示函数结构，不表示实测遮挡概率。
+
+## 3.5 区域查询与最终可见性预测
+
+对水平圆盘采用中心 $\mathbf x_0=\mathbf c$ 与八个等角圆周支持点：
+
+$$
+\mathbf x_k=\mathbf c+r\left[
+\cos\left(\frac{2\pi(k-1)}8\right)\mathbf e_X+
+\sin\left(\frac{2\pi(k-1)}8\right)\mathbf e_Z
+\right],\quad k=1,\ldots,8.
+$$
+
+相对于目标中心 $\mathbf o_i$，每个支持点确定 $\ell_{ik}=\|\mathbf x_k-\mathbf o_i\|$ 与单位方向 $\boldsymbol\omega_{ik}$。解析查询得到 $S_{ik}=S_i(\boldsymbol\omega_{ik},\ell_{ik})$，并构造：
+
+$$
+s_i=\left[S_{i0},\ \max_{0\le k\le8}S_{ik},\
+\frac19\sum_{k=0}^{8}S_{ik},\ \min_{0\le k\le8}S_{ik}\right]\in\mathbb R^4.
+$$
+
+最大、平均和最小响应均针对九个支持点，不是连续圆盘上经过证明的极值或积分。中心响应与区域变化信息共同输入预测头，学习与采样区域 PVS 标签之间的关系。
+
+查询几何 $q_i\in\mathbb R^{16}$ 由相机与目标的相对方向、距离尺度、圆盘范围、视场角以及近远裁剪参数构建。它与生存统计量并行产生。最终输入与预测为：
+
+$$
+\xi_i=f_{\Theta}([z_i,s_i,q_i]),
+\qquad
+f_{\Theta}:\mathbb R^{52}\rightarrow\mathbb R^{32}\rightarrow\mathbb R.
+$$
+
+固定阈值下的区域预测集合为：
+
+$$
+\widehat{\mathcal V}(\mathcal B)
+=\{u_i\in\mathcal C(\mathcal B):\xi_i\ge\tau\},\qquad \tau=0.
+$$
+
+**配图位置：** 图 2 的在线输入及预测头、图 3 的解析查询与统计量共同覆盖本节，不新增重复查询图。
+
+## 3.6 保守可见性学习
+
+训练在不可见单元的冗余保留与可见单元的错误剔除之间建立非对称目标。以 logit $\xi$ 定义平滑代价：
+
+$$
+h_{\mathrm{keep}}(\xi)=\frac{\operatorname{softplus}(\xi)}{\ln2},
+\qquad
+h_{\mathrm{miss}}(\xi)=\frac{\operatorname{softplus}(-\xi)}{\ln2}.
+$$
+
+对于训练场景 $s$，记可见出现次数为 $G_s$、正例视觉权重总和为 $W_s$，采样校正系数为 $a_n$。权重归一化与两类风险为：
+
+$$
+\mu_s=\frac{W_s}{G_s},\qquad
+\widetilde w_n=\rho+(1-\rho)\frac{w_n}{\mu_s},\qquad\rho=0.1,
+$$
+
+$$
+J_{\mathrm{extra}}^{(s)}=\frac{\sum_{n:y_n=0}a_n h_{\mathrm{keep}}(\xi_n)}{G_s},
+\qquad
+R_s=\frac{\sum_{n:y_n=1}a_n\widetilde w_n h_{\mathrm{miss}}(\xi_n)}{G_s}.
+$$
+
+计数下限为小视觉贡献单元保留非零安全权重，归一化视觉权重体现遗漏的重要性。多个训练域通过 SmoothMax 聚合风险，并求解：
+
+$$
+\min_{\Theta}J_{\mathrm{extra}}
+\quad\mathrm{s.t.}\quad R_{\mathrm{robust}}\le\epsilon_{\mathrm{safe}},
+\qquad\epsilon_{\mathrm{safe}}=0.01.
+$$
+
+当前实现以域风险的指数移动平均计算在线 SmoothMax 权重，按域采样频率修正随机梯度，并更新一个共享对偶变量。该目标约束训练风险；实际安全性由独立评价集上的召回率、置信下界和误剔结果确定。
+
+**图表配置：** 训练目标的影响纳入表 4 的 `FULL` 与 `PBCE_OBJECTIVE` 对照。训练曲线和分数分布属于补充分析，不列为新的模型消融或正文必需图。
 
 ---
 
-## 3.2 Local Surface Geometry Encoding
+# 4. 渐进式 Web3D 集成（Progressive Web3D Integration）
 
-每个 unit 使用 256 个表面采样点，每点包含：
+## 4.1 离线编译与资产传输
+
+场景准备阶段执行表面采样、共享几何编码、关系构建与方向场编译。每个单元的核心浮点表示由 $z_i\in\mathbb R^{32}$ 和 $F_i\in\mathbb R^{4\times7}$ 构成，并与目标包围体、位置尺度及必要索引共同组织为查询资产。共享预测头权重独立存储。
+
+客户端优先获得该资产，其后可在待选单元详细几何未到达时执行可见性查询。实际存储代价由导出资产测量，区分单元表示、元数据与共享权重，不以理论浮点数量代替最终传输字节数。
+
+## 4.2 候选生成与批量查询
+
+以当前相机位置建立圆盘区域锚点，保持当前相机朝向和投影参数。从中心沿观察方向后退，使用扩展视锥对单元 AABB 进行测试，得到候选集合。随后对候选单元执行一次批量模型查询。
+
+当前显示视场角为 $\theta_{\mathrm{view}}=60^\circ$，离线 GT、候选及模型查询采用 $\theta_{\mathrm{cov}}=66^\circ$。登记的后退距离为：
 
 $$
-(x,y,z,n_x,n_y,n_z).
+\mathbf c'=\mathbf c-\Delta\mathbf v,
+\qquad
+\Delta=\frac{r}{\tan(\theta_{\mathrm{view}}/2)}.
 $$
 
-共享 point encoder 经过 symmetric max/mean pooling 和 unit size ratios，得到：
+其中 $\mathbf v$ 为固定观察方向。候选覆盖通过采样 GT 的包含检查验证；该构造不作为连续圆盘所有视点的数学覆盖证明。
+
+## 4.3 区域复用与当前帧过滤
+
+当相机仍位于锚定圆盘内，且方向、相机高度及投影参数满足当前区域约定时，可复用区域预测。相机离开区域或上述条件改变时，重新建立锚点并查询。在线朝向不吸附于离线数据方向。
+
+当前帧保留集由区域预测与真实显示视锥相交得到：
 
 $$
-z_i\in\mathbb R^{32}.
+\mathcal R_t=\widehat{\mathcal V}(\mathcal B)\cap\mathcal C_{\mathrm{view}}(\mathbf c_t).
 $$
 
-该 descriptor 表示 unit 本身的局部几何特征。
+$\mathcal R_t$ 是待显示或处理的预测保留集，并非新的精确遮挡求解结果。区域过滤与单帧视锥过滤承担不同作用。
 
-这一节重点说明：
+## 4.4 可见性引导的内容排序
 
-> local geometry 提供 target shape information，但不能单独描述 surrounding occlusion context。
+连续分数 $\xi_i$ 用于对候选单元进行优先级排序，使高可见相关性内容优先进入传输与处理队列。阈值过滤和不设阈值的排序分别评价，避免因候选集合变化混淆排序收益。
 
-这自然引出下一节。
+**配图配置：** 本节复用图 2 的资产传输与浏览器分支。传输效果在图 1 与图 6 中展示，不另设重复系统架构图。
 
 ---
 
-## 3.3 Potential-Occluder Relations
+# 5. 实验与评价（Evaluation）
 
-对每个 target unit，在 12 个固定正二十面体 anchor directions 上构造 potential occlusion relations。
+## 5.1 实验设置与数据协议
 
-### Relation Construction
+实验覆盖 BIM、室内、村落和城市等真实场景，并使用合成场景补充训练结构。场景名称、单元数、几何规模、中心数、圆盘半径、数据划分和实验角色记录于表 2。
 
-对于每个 anchor direction：
+合法区域中心依据可通行空间、建筑周边、开阔区域及高度层生成，并检查与几何的安全距离。每个物理中心展开水平角 $0^\circ,90^\circ,180^\circ,270^\circ$ 与俯仰角 $-15^\circ,0^\circ,15^\circ$，形成十二个离线观察方向。每个方向对应一个固定高度的水平圆盘，包含中心在内的 32 个位置用于硬件 Color-ID 渲染，其余位置采用冻结的面积均匀采样规则。
 
-1. 将 unit AABB 正交投影到垂直于该方向的平面；
-2. 检查 projected overlap；
-3. 结合 depth ordering；
-4. 选取最多 top-8 potential occluders。
-
-### Relation Features
-
-每条 edge 编码：
-
-- relative direction；
-- normalized distance；
-- relative scale；
-- projected overlap；
-- depth gap。
-
-### Relation Aggregation
-
-对于 target $i$、anchor $k$、source $j$：
+采样区域 GT 与视觉权重定义为：
 
 $$
-m_{ijk}
-=
-\operatorname{MLP}(z_i,z_j,e_{ijk}).
+\mathcal V_{\mathrm{GT}}(\mathcal B)=\bigcup_{m=1}^{32}V(\mathbf c_m),
+\qquad
+w_i(\mathcal B)=\max_{m=1,\ldots,32}w_i(\mathbf c_m).
 $$
 
-使用 attention 聚合：
+候选集合独立由后退视锥生成，检查 $\mathcal V_{\mathrm{GT}}(\mathcal B)\subseteq\mathcal C(\mathcal B)$；不通过补入 GT 单元修复候选遗漏。训练、校准、验证及测试按物理中心分组，同中心的所有方向及内部采样位置不得跨集合。
+
+主指标包含 Weighted Recall、单侧 95% 置信下界（LCB）、Bad Cull、Useful Cull 和 CNOR；排序性能报告 PR-AUC，并结合正类比例解释。指标定义、聚合与 bootstrap 单位按冻结评价协议执行。全部候选保留作为安全性参照；几何启发式、AABB 代理及 HZB 作为对应任务的比较方法。区域与单视点方法分别标明查询条件，几何或代理资产纳入成本统计。
+
+**图表配置：** 表 2 给出场景与协议，采样过程以本节公式和文字说明，不安排独立采样示意图。
+
+## 5.2 主要可见性结果
+
+完整模型在固定阈值 $\tau=0$ 下进行逐场景评价，同时报告场景等权汇总和最差场景表现。安全性指标与剔除效率联合呈现，避免以大量保留不可见单元获得的高召回替代有效剔除。校准阈值结果作为独立口径报告，不替代固定阈值结果。
+
+**表 3：** 主模型及可比基线的可见性结果，包括 Weighted Recall、LCB、Bad Cull、Useful Cull、CNOR 和排序指标；重复实验均值与离散程度由正式结果填写。
+
+### 配图：图 4——可见性预测定性结果
+
+> **［图 4 占位：单元级预测与可见内容遗漏对比］**  
+> 文件：`paper/figures/fig04-visibility-results.png`。
+
+<!-- 上传后启用：![图4 可见性预测结果](../paper/figures/fig04-visibility-results.png) -->
+
+**图面内容：** 在相同视角下对照完整参考、基线与本文方法，统一标记正确保留、正确剔除和错误剔除；同时选取典型有效遮挡案例与困难案例。渲染图对应当前帧，区域 PVS 指标另行标注。
+
+**图注：** 区域可见性预测的定性比较。各方法采用相同候选单元、相机和渲染设置。颜色区分正确保留、正确剔除与可见内容误剔，局部放大展示遮挡边界、细小结构及显露区域的预测差异。
+
+## 5.3 消融实验
+
+正式消融仅包含下列三组：
+
+| 对照 | 保留条件与主要差异 | 评价内容 |
+|---|---|---|
+| `FULL` 与 `GEOMETRY_FIELD` | 后者移除潜在遮挡关系输入，以局部几何生成场；保留结构化场、区域查询和同一训练目标 | 周围遮挡上下文的贡献 |
+| `FULL` 与 `GENERIC_RELATION_28` | 使用相同关系证据与 28 值运行时上下文预算；后者以无结构潜变量及对应查询头替代解析场路径 | 结构化表示与查询机制的整体贡献 |
+| `FULL` 与 `PBCE_OBJECTIVE` | 保留相同 Full 表征，仅将训练目标替换为逐区域平衡 BCE | 保守目标在统一操作点下的影响 |
+
+三组结果统一报告安全性、剔除效率和排序性能。`GENERIC_RELATION_28` 对照评价整条结构化路径，不据此分别归因方向基、单调性或支持点数量。运行时表示容量与网络参数量分别登记。
+
+**图表配置：** 表 4 汇总三组既有消融及重复实验结果；结构位置对应图 2、图 3。不增加支持点数量、锚点数量、阶数或维度扫描等新的消融。
+
+## 5.4 跨场景泛化
+
+采用留一场景（LOSO）和外部独立场景评价模型迁移。网络权重、模型配置及检查点在评价前冻结，外部场景不参与模型选择。主结果采用固定操作点；如使用目标场景校准，则校准标签与最终评价标签隔离，并单独报告该口径。
+
+**图表配置：** 表 5 汇总已见场景、LOSO 与外部场景的安全性、剔除效率及排序结果，并注明是否使用目标校准。代表性的外部场景案例可纳入图 4，不另设重复定性图。
+
+## 5.5 运行时与存储开销
+
+分别测量离线资产生成时间、单元资产大小、共享权重和客户端查询延迟。运行时测量记录设备、浏览器、后端、候选规模与冷启动或稳定状态，区分候选构造、数据准备、解析查询、预测头及结果传递的开销。WebGPU 与 WASM 结果对应相同 V5 导出版本。
+
+**表 6：** 资产字节数、bytes/unit、编译时间及固定候选规模下的查询延迟。几何或代理基线同时计入其前置数据与准备成本。
+
+### 配图：图 5——候选规模与查询延迟
+
+> **［图 5 占位：V5 客户端查询开销曲线］**  
+> 文件：`paper/figures/fig05-runtime-scaling.png`。
+
+<!-- 上传后启用：![图5 运行时规模分析](../paper/figures/fig05-runtime-scaling.png) -->
+
+**图面内容：** 横轴为实际候选单元数，纵轴为查询时间；区分运行后端，并标注中位数、尾部延迟及测试设备。存储开销由表 6 承载。
+
+**图注：** 客户端批量可见性查询的规模变化。各测量点对应相同资产版本与冻结查询协议，按后端报告查询延迟及其波动。运行时间包含范围在实验设置中明确列出。
+
+## 5.6 渐进式传输效果
+
+在相同候选集合、带宽、初始缓存和单元成本下比较原始顺序、距离或投影重要性、AABB/代理可见性、HZB 优先与模型分数等排序策略。基于 GT 的参考顺序独立标记为理想参照，不将其未经证明地称为全局最优。
+
+设截至时间 $t$ 已到达的单元集合为 $\mathcal D(t)$，可见贡献覆盖率为：
 
 $$
-h_{ik}
-=
-\sum_j\alpha_{ijk}m_{ijk}.
+\operatorname{Coverage}(t)=
+\frac{\sum_{u_i\in\mathcal D(t)\cap\mathcal V_{\mathrm{GT}}}w_i}
+{\sum_{u_i\in\mathcal V_{\mathrm{GT}}}w_i}.
 $$
 
-并保留 neighbor count 和 overlap sum。
+报告达到 95%、99% 和 99.9% 覆盖率的成本或字节数、时间及冗余传输。字节数除以恒定带宽仅作为传输时间估计；实测端到端时间分别计入调度、解码和渲染。单元成本与重复计费规则在协议中固定。
 
-每个 anchor 最终输出一个 7D response：
+**表 7：** 不同策略的 Cost/Bytes@95/99/99.9、冗余与 time-to-coverage；真实调度重放在本节作为系统结果报告。
 
-$$
-q_{ik}\in\mathbb R^7.
-$$
+### 配图：图 6——渐进式可见贡献恢复
 
-因此每个 unit 得到：
+> **［图 6 占位：传输量与时间对应的可见贡献覆盖曲线］**  
+> 文件：`paper/figures/fig06-streaming-coverage.png`。
 
-$$
-Q_i\in\mathbb R^{12\times7}.
-$$
+<!-- 上传后启用：![图6 渐进式传输效果](../paper/figures/fig06-streaming-coverage.png) -->
 
-这一步的作用是：
+**图面内容：** 分别以累计传输量和时间为横轴，以可见贡献覆盖率为纵轴，对照相同测试集合下的排序策略。图 1 的示例画面取自同一评价过程。
 
-> 把离散的 surrounding geometry relations 编译成不同观察方向上的遮挡 response。
+**图注：** 不同内容优先级策略下的渐进式可见贡献覆盖率。所有策略处理相同候选集合，并使用一致的单元成本、缓存与带宽条件。曲线刻画内容到达过程，目标覆盖率对应的字节数、时间和冗余量见表 7。
 
 ---
 
-## 3.4 Geometry-Compiled Directional Survival Field
+# 6. 讨论与局限（Discussion and Limitations）
 
-这一节需要作为 Method 的重点解释。
+## 6.1 紧凑表示与场景规模
 
-### 3.4.1 Continuous Directional Field
+每单元表示使资产与查询工作量随单元数量增长。细粒度单元提高剔除与排序分辨率，也增加元数据、编译和批量推理成本。图 5 与表 6 用于界定本文实现的规模适用范围。
 
-12 个 anchor responses 只存在于离散方向，而 runtime camera direction 是连续的。
+## 6.2 几何代理与方向容量
 
-使用一阶方向 basis：
+AABB 投影关系是潜在遮挡的近似，可能对薄片、孔洞、植被及非盒状结构产生不充分或多余的关系。固定一阶方向基限制角向细节，并通过低阶投影丢弃部分锚点响应。两者共同形成存储成本与表达能力之间的权衡。
 
-$$
-\phi(d)
-=
-[1,d_x,d_y,d_z].
-$$
+## 6.3 生存结构与区域采样
 
-12 个 anchor basis 构成：
+径向单调性属于中间表示的结构约束，不要求真实扩展单元的最终可见性关于相机距离单调。九点统计不能覆盖连续圆盘的所有局部变化；32 位置 GT 同样属于采样区域近似。因此，本文以采样协议下的实证安全性评价模型，不主张连续空间的绝对保守保证。
 
-$$
-A\in\mathbb R^{12\times4}.
-$$
+## 6.4 场景变化与泛化范围
 
-使用固定 pseudoinverse：
+已编译场反映离线阶段的遮挡结构。动态物体、显著几何修改或分布外场景可能降低预测可靠性，并引入更新资产的需求。LOSO 与外部场景评价限定已测试分布下的迁移能力，不推及任意动态场景。
 
-$$
-C_i
-=
-A^{+}Q_i,
-$$
-
-得到：
-
-$$
-C_i\in\mathbb R^{4\times7}.
-$$
-
-因此任意方向 $d$ 都可以查询：
-
-$$
-r_i(d)
-=
-\phi(d)C_i
-\in\mathbb R^7.
-$$
-
-这一步把：
-
-$$
-12\times7=84
-$$
-
-个 directional responses 压缩为：
-
-$$
-4\times7=28
-$$
-
-个 continuous-field coefficients。
-
-### 3.4.2 Survival Interpretation
-
-把沿方向 $d$ 遇到有效遮挡的距离记为：
-
-$$
-T_i(d).
-$$
-
-定义：
-
-$$
-S_i(d,t)
-=
-P(T_i(d)>t).
-$$
-
-直观含义是：
-
-> 从 target 沿方向 $d$ 走到距离 $t$ 时，遮挡事件尚未发生的程度。
-
-需要明确：
-
-> $S_i$ 是 structured occlusion statistic，而不是经过概率校准的最终 visibility probability。
-
-### 3.4.3 Seven-Parameter Survival Model
-
-方向查询得到的 7 个参数对应：
-
-- no-hit mass $p_\infty$；
-- mixture weights $\pi_1,\pi_2$；
-- locations $\mu_1,\mu_2$；
-- scales $s_1,s_2$。
-
-normalized distance：
-
-$$
-t
-=
-\log\left(1+\frac{d}{r_i}\right).
-$$
-
-完整 survival 由两个 truncated logistic components 构成。
-
-representation 满足：
-
-$$
-S(0)=1,
-$$
-
-并在固定方向上满足：
-
-$$
-d_2>d_1
-\Rightarrow
-S(d_2)\le S(d_1).
-$$
-
-因此 structured field 注入：
-
-- directional continuity；
-- distance monotonicity；
-- scale awareness。
-
-### 3.4.4 为什么需要 Structured Field
-
-这一节明确论文 hypothesis：
-
-> 对遮挡这样的 direction-distance phenomenon，具有连续方向与单调距离结构的 representation，可能比同容量 unrestricted latent 更适合作为 compact runtime visibility representation。
-
-该 hypothesis 由 GENERIC_RELATION_28 消融验证。
+**图表配置：** 困难场景与误剔案例集中于图 4，性能边界引用图 5 和表 6。本节不新增重复示意图。
 
 ---
 
-## 3.5 From-Region Survival Query and Visibility Prediction
+# 7. 结论（Conclusion）
 
-### Analytic Support Query
+本文将渐进式 Web3D 中的遮挡相关性获取前移到详细几何驻留之前，通过离线编译构建可供客户端查询的紧凑单元表示。方向生存场联合局部形状与周围遮挡上下文，以解析区域统计和轻量预测头输出 PVS 分数。最终结论依据可见性质量、三组既有消融、跨场景迁移及运行和传输评价，概括该表示在减少冗余处理与提前恢复可见内容方面的适用范围。
 
-对于 horizontal-disk view-cell，runtime 在 field 上查询：
-
-- disk center；
-- 8 个圆周点。
-
-对于 support point $x_k$：
-
-$$
-d_{ik}
-=
-\frac{x_k-c_i}{\|x_k-c_i\|},
-$$
-
-$$
-\ell_{ik}
-=
-\|x_k-c_i\|.
-$$
-
-得到：
-
-$$
-S_{ik}
-=
-S_i(d_{ik},\ell_{ik}).
-$$
-
-### Regional Statistics
-
-9 个 values 汇总为：
-
-$$
-[
-S_{\mathrm{center}},
-S_{\max},
-S_{\mathrm{mean}},
-S_{\min}
-].
-$$
-
-这些 statistics 提供区域级 occlusion evidence。
-
-尤其：
-
-- $S_{\max}$ 对应区域中最强 unoccluded evidence；
-- $S_{\min}$ 表示最强遮挡位置；
-- $S_{\mathrm{mean}}$ 表示整体区域状态。
-
-### Final Visibility Head
-
-survival statistics 不是最终 PVS。
-
-最终模型联合：
-
-- local geometry descriptor；
-- regional survival statistics；
-- query geometry；
-
-输出 unit-level visibility logit：
-
-$$
-\ell_i^{\mathrm{vis}}.
-$$
-
-需要明确：
-
-$$
-\text{survival field}
-\neq
-\text{visibility probability}.
-$$
-
-更准确地说：
-
-$$
-\text{survival field}
-=
-\text{structured directional occlusion representation}.
-$$
+本节不新增图表，不填入尚未完成的实验结论。
 
 ---
 
-## 3.6 Conservative Visibility Learning
-
-PVS 中 false negative 与 false positive 的代价不对称：
-
-- false negative：potentially visible unit 被漏掉；
-- false positive：不可见 unit 被额外保留。
-
-因此训练目标不是单纯最大化 classification accuracy，而是在安全约束下提高 culling efficiency。
-
-### Fixed Operating Point
-
-主协议使用：
-
-$$
-z=0
-$$
-
-作为统一 operating point。
-
-### Efficiency Objective
-
-对 negative units 惩罚额外保留：
-
-$$
-J_{\mathrm{extra}}.
-$$
-
-### Safety Risk
-
-对 positive units 使用结合 count floor 和 visual importance 的 safety risk：
-
-$$
-R_s.
-$$
-
-### Domain-Robust Constraint
-
-在多个 real scenes 和 synthetic structure families 上聚合风险，并优化：
-
-$$
-\min_\theta J_{\mathrm{extra}}
-\quad
-\text{s.t.}
-\quad
-R_{\mathrm{robust}}\le\epsilon.
-$$
-
-具体 SmoothMax、EMA 和 shared dual 放在方法细节中描述，不需要在 Introduction 重复。
-
----
-
-# 4. Progressive Web3D Integration
-
-本节说明方法如何从 offline compiled representation 转化为 Web runtime capability。
-
-## 4.1 Offline Compilation
-
-对场景执行：
-
-~~~text
-unit surface geometry
-        ↓
-local descriptor
-        +
-potential-occluder relations
-        ↓
-relation compiler
-        ↓
-4×7 directional survival field
-        ↓
-compact visibility asset
-~~~
-
-离线阶段负责 scene-context analysis；客户端只接收 runtime 所需的 compact representation。
-
-## 4.2 Runtime View-Cell Query
-
-当前 camera position 和 orientation 建立 horizontal-disk view-cell。
-
-通过后退 $66^\circ$ AABB frustum 获得 candidate units。
-
-随后：
-
-~~~text
-candidate units
-      ↓
-one batched model query
-      ↓
-regional visibility scores
-~~~
-
-需要严格区分：
-
-~~~text
-32 = offline GT camera samples
- 9 = V5 internal analytic support points
- 1 = runtime batched model query
-~~~
-
-## 4.3 Regional PVS and Instantaneous Rendering
-
-模型得到 regional PVS：
-
-$$
-\widehat{\mathrm{PVS}}(\mathcal B).
-$$
-
-随后结合当前真实 $60^\circ$ display frustum 得到 instantaneous units。
-
-因此：
-
-~~~text
-66° regional PVS
-      ↓
-predicted potentially visible units
-      ↓
-current 60° display frustum
-      ↓
-instantaneous render/process set
-~~~
-
-## 4.4 Progressive Ordering
-
-连续 visibility score 还可以作为 progressive ordering signal。
-
-本节不讨论具体文件打包方式，只研究：
-
-> unit-level occlusion-aware relevance 是否能够让有用内容更早到达。
-
----
-
-# 5. Evaluation
-
-Evaluation 分为主结果、已有消融、泛化、runtime/storage 和 progressive delivery 五类证据。
-
-## 5.1 Experimental Setup
-
-### Scenes
-
-介绍：
-
-- real scenes；
-- synthetic training scenes；
-- external holdout。
-
-### View-Cell Protocol
-
-统一使用：
-
-- physical region centers；
-- 12 offline directions；
-- horizontal disk；
-- 32 GT positions；
-- $66^\circ$ Color-ID GT；
-- independent candidate generation；
-- center-grouped data split。
-
-### Baselines
-
-根据最终实验完成情况选择：
-
-- simple geometric heuristics；
-- HZB / proxy-based visibility；
-- existing learned visibility baseline；
-- GT oracle for streaming upper bound。
-
-### Metrics
-
-主 visibility metrics：
-
-- Weighted Recall；
-- one-sided 95% LCB；
-- Bad Cull；
-- Useful Cull；
-- CNOR；
-- PR-AUC。
-
----
-
-## 5.2 Main Visibility Results
-
-使用 FULL 模型报告主要 visibility quality。
-
-重点回答：
-
-> 在统一 fixed operating point 下，模型能否保持高 safety，同时有效减少不可见 candidate units？
-
-主要报告：
-
-- per-scene；
-- scene-equal；
-- worst-scene；
-
-结果。
-
-calibrated threshold 只作为 diagnostic，不替代 fixed operating point 主结果。
-
----
-
-## 5.3 Ablation Study
-
-只包含当前正式三组消融。
-
-### 5.3.1 Occlusion Context
-
-FULL vs GEOMETRY_FIELD
-
-验证：
-
-> surrounding potential-occluder context 是否提供了超出 local target geometry 的信息。
-
-### 5.3.2 Structured Field
-
-FULL vs GENERIC_RELATION_28
-
-验证：
-
-> structured directional survival field 是否优于同容量 unrestricted latent。
-
-这一组是 survival-field representation 的核心证据。
-
-### 5.3.3 Conservative Objective
-
-FULL vs PBCE_OBJECTIVE
-
-验证：
-
-> safety-oriented learning 是否在统一 operating point 下取得更好的 safety–efficiency trade-off。
-
----
-
-## 5.4 Cross-Scene Generalization
-
-### LOSO
-
-评价 frozen model 在 held-out real scene 上的迁移能力。
-
-### External Holdout
-
-在模型和实验协议冻结后，对独立场景进行评价。
-
-报告：
-
-- fixed operating point；
-- 如需要，单独报告 target-calibrated diagnostic。
-
-本节用于分析 representation/model 的 cross-scene transfer，不把“完全禁止离线 visibility labels”作为方法前提。
-
----
-
-## 5.5 Runtime and Storage Cost
-
-针对 V5 实际部署测量：
-
-- compact visibility asset size；
-- bytes/unit；
-- shared model size；
-- offline compilation time；
-- WebGPU latency；
-- WASM latency；
-- candidate-count scaling。
-
-核心问题：
-
-> compact pre-geometry visibility representation 的成本是否足够低，能够在 Web 客户端使用？
-
----
-
-## 5.6 Progressive Delivery
-
-在相同 candidate unit set 下比较不同 ordering signals：
-
-- baseline/original order；
-- distance / projected-area heuristic；
-- AABB/proxy baseline；
-- HZB visible-first；
-- V5 visibility score；
-- GT visibility oracle。
-
-报告：
-
-- Cost/Bytes@95；
-- Cost/Bytes@99；
-- Cost/Bytes@99.9；
-- waste；
-- time-to-coverage。
-
-若完成真实 scheduler replay，则作为同一节的进一步 system result，而不是新的消融实验。
-
----
-
-# 6. Discussion and Limitations
-
-## 6.1 Per-Unit Representation Cost
-
-runtime asset 和 query cost 随 unit 数增长，需要讨论：
-
-- scene granularity；
-- candidate filtering；
-- memory/runtime trade-off。
-
-## 6.2 AABB Proxy Approximation
-
-Potential-occluder construction 基于 AABB projected overlap，可能难以精确表达：
-
-- thin geometry；
-- porous structures；
-- foliage；
-- highly non-box-like occluders。
-
-## 6.3 Low-Order Directional Field
-
-一阶方向 basis 提供 compactness 与 continuity，但限制 angular frequency。
-
-需要讨论：
-
-> structured inductive bias 与 representation capacity 之间的 trade-off。
-
-## 6.4 Static Scene Assumption
-
-当前 compiled visibility representation 主要针对静态遮挡结构。动态 occluders 需要：
-
-- local recompilation；
-- runtime residual visibility；
-- hybrid HZB 等扩展。
-
-## 6.5 Safety–Efficiency Trade-Off
-
-Conservative PVS 天然存在：
-
-$$
-\text{safety}
-\leftrightarrow
-\text{culling efficiency}
-$$
-
-的 trade-off。
-
-本文目标不是最大化单一 classification metric，而是在高 safety 下尽可能减少冗余 units。
-
-## 6.6 Generalization Scope
-
-LOSO / external holdout 只能证明 tested distributions 下的 cross-scene transfer，不能泛化为 arbitrary open-world geometry。
-
----
-
-# 7. Conclusion
-
-总结三点：
-
-1. **问题**：progressive Web3D 需要 detailed geometry residency 之前的 occlusion-aware relevance；
-2. **方法**：把 surrounding occlusion context 离线编译成 compact directional survival field，并用轻量 region query 得到 unit-level PVS score；
-3. **意义**：visibility 可以作为一种独立、紧凑的 scene representation，在 detailed content arrival 之前服务于 culling 和 progressive delivery。
-
-最终结论应回到：
-
-> **pre-geometry visibility 是一种新的 visibility operating point，而 geometry-compiled occlusion field 提供了实现这一能力的紧凑表示。**
+# 图表位置总览
+
+| 章节 | 图 | 表 |
+|---|---|---|
+| 摘要 | 无 | 无 |
+| 1 引言 | 图 1：应用效果概览 | 无 |
+| 2 相关工作 | 无独立图 | 表 1：方法与查询条件比较 |
+| 3 方法 | 图 2：整体架构；图 3：生存场构建与查询 | 网络细节随正文列出 |
+| 4 Web3D 集成 | 复用图 2；效果对应图 1、图 6 | 无重复表 |
+| 5.1 实验设置 | 不另设采样图 | 表 2：场景与协议 |
+| 5.2 主结果 | 图 4：定性结果 | 表 3：主可见性结果 |
+| 5.3 消融 | 结构参照图 2、图 3 | 表 4：既有三组消融 |
+| 5.4 泛化 | 外部场景案例并入图 4 | 表 5：跨场景结果 |
+| 5.5 开销 | 图 5：查询规模曲线 | 表 6：资产与运行成本 |
+| 5.6 传输 | 图 6：覆盖率曲线；复用图 1 | 表 7：目标覆盖率成本与时间 |
+| 6 讨论 | 引用图 4、图 5 | 引用表 6 |
+| 7 结论 | 无 | 无 |
+
+## 文档与实现依据
+
+方法实现核对基于 `luxingzhi27/web3d-pvs` 的 `4faca3ce83ecc269d83a94c215a353925aa9be7e` 快照。该快照的 V5 主要为训练与离线评价路径；本文第 4 节为其 Web 部署设计，第 5.5—5.6 节的 V5 系统数值仍由对应版本实测填写，不借用 V4 结果。
+
+详细支撑文档：[GCOF 方法](04-gcof-method.md)、[统一区域协议](03a-unified-viewcell-protocol.md)、[训练目标](05-shared-boundary-learning.md)、[评价计划](07-evaluation-plan.md)、[图表目录](09-figures-tables.md)。
