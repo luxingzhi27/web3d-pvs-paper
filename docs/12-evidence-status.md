@@ -29,11 +29,7 @@
 - runtime 每个 view-cell 只执行一次 batched unit query；
 - V5 内部 9 点只用于 analytic field statistics。
 
-论文不再使用：
-
-- oriented-box / cube view-cell；
-- GLB/file packaging relation 作为方法定义；
-- “32 个 runtime views”或“9 次 camera query”的表述。
+统一写作时避免把离线 GT sampling 与在线 query 混淆，不使用“32 个 runtime views”或“9 次 camera query”这类表述。
 
 详细 source of truth：
 
