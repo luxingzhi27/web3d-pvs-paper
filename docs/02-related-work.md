@@ -77,7 +77,7 @@ view-cell-specific PVS database
 
 我们的区别不是“我们也提前算 visibility”，而是：
 
-> 传统 PVS 通常存储 view-cell-specific 的离散 visibility solution；V5 使用一个共享的 geometry-only compiler，把场景上下文压缩成 per-unit、可连续 region query 的 compact representation。
+> 传统 PVS 通常存储 view-cell-specific 的离散 visibility solution；V5 则把 scene occlusion context 编译成 per-unit、可连续 region query 的 compact representation。
 
 也就是说，Related Work 里要逐步从：
 
@@ -321,21 +321,15 @@ compact neural visibility
 
 关键区别：
 
-- NVGS 是 asset-specific visibility distillation；
-- 需要从已经存在的 3DGS asset 中生成 visibility supervision；
-- 运行时目标是避免 rasterize 已经 resident 的 Gaussian。
+- NVGS 面向已经 resident 的 3D Gaussian asset，在 rasterization 前预测 primitive visibility；
+- V5 面向 from-region PVS，在 detailed scene content 尚未 resident 于客户端时查询 per-unit visibility；
+- 两者都可以在离线阶段利用完整场景信息，差异主要在 representation granularity、query region 和 runtime operating point。
 
-V5 希望：
+因此更合适的比较是：
 
-- 新场景只根据 geometry 做 deterministic compilation；
-- 不使用 target-scene visibility labels 微调；
-- 在 detailed geometry 尚未下载时就进行 visibility query。
+> **render-time primitive visibility vs. pre-geometry from-region visibility**
 
-因此可以概括成：
-
-> **visibility-distilled asset vs. geometry-compiled visibility asset**
-
-这个比较很适合突出 V5 的设计哲学。
+而不是把“是否使用 target-scene visibility labels”作为主要区别。
 
 ---
 
@@ -366,13 +360,13 @@ V5 希望：
 
 更准确的问题是：
 
-> **Can geometry-only scene context be compiled by a shared model into a compact transferable visibility representation whose predictions remain conservatively interpretable at a fixed decision boundary on unseen geometry?**
+> **Can scene occlusion context be compiled into a compact transferable representation that supports efficient from-region visibility queries before detailed content residency?**
 
 这句话应该自然过渡到 V5 的：
 
-- geometry-only compiler；
+- compact scene compilation；
 - structured field；
-- fixed-zero boundary。
+- lightweight from-region query。
 
 ---
 
