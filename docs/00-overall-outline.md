@@ -17,7 +17,7 @@
 主要贡献：
 
 1. 面向 progressive Web3D 的 pre-geometry from-region visibility 方法；
-2. geometry-only occlusion context 到 compact directional field 的编译与查询；
+2. geometric occlusion context 到 compact directional field 的编译与查询；
 3. 面向 unit-level culling 与 progressive delivery 的系统验证。
 
 ---
@@ -50,9 +50,9 @@
 
 将每个 unit 的局部表面几何编码为共享的紧凑 descriptor，不使用 scene ID 或 per-instance learned memory。
 
-### 3.3 Geometry-Only Occlusion Relations
+### 3.3 Potential-Occluder Relations
 
-基于 unit AABB、固定方向和 projected overlap 构造 potential-occluder relations，不使用 visibility labels。
+基于 unit AABB、固定方向和 projected overlap 构造 potential-occluder relations，用于描述 target unit 周围的遮挡上下文。
 
 ### 3.4 Geometry-Compiled Occlusion Field
 
@@ -72,7 +72,7 @@
 
 ### 4.1 Offline Compilation
 
-对新场景执行 local geometry encoding、geometry-only relation construction 和 field compilation，生成 compact visibility asset。
+对场景执行 local geometry encoding、occlusion-relation construction 和 field compilation，生成 compact visibility asset。
 
 ### 4.2 Runtime Query
 
