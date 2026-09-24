@@ -1,235 +1,361 @@
-# 04 — Geometry-Compiled Occlusion Fields
+# 04 — Geometry-Compiled Occlusion Fields（GCOF 方法）
 
-## Section goal
+## 本节目标
 
-Explain why V5 is not merely an instance classifier. The core chain is:
+这一节必须解释清楚：
+
+> V5 不是一个普通 instance classifier，而是先把 geometry-only scene context 编译成一个可传输、可连续查询的结构化 visibility representation，再进行轻量 region query。
+
+整体链路：
 
 ```text
 local target geometry
 + geometry-only occlusion context
-→ compact structured directional field
-→ analytic region query
-→ tiny visibility head
+    ↓
+structured compact directional field
+    ↓
+analytic region query
+    ↓
+tiny visibility head
 ```
 
-## 4.1 Local surface geometry encoder
+---
 
-Current implementation per renderable unit:
+# 4.1 Local Surface Geometry Encoder
 
-- 256 fixed surface samples;
-- per-point channels: normalized local xyz + normal = 6D;
-- 3 unit-level size ratios.
+每个 renderable unit 输入：
 
-Network:
+- 256 个固定表面采样点；
+- 每点 6D：normalized local xyz + normal；
+- unit-level 3 个 size ratios。
+
+当前网络：
 
 ```text
 point MLP: 6 → 32 → 64 → 64, SiLU
 pool: max(64) || mean(64) || size ratios(3)
-unit MLP: 131 → 64 → 32, SiLU then Tanh
+unit MLP: 131 → 64 → 32, SiLU + Tanh
 ```
 
-Output:
+输出：
 
-\[
+[
 z_i\in\mathbb R^{32}.
-\]
+]
 
-Emphasize:
+这一节不要把 PointNet-like encoder 本身包装成创新。
 
-- shared across scenes;
-- no scene ID;
-- no unit embedding;
-- no per-instance learned residual;
-- no scene-normalized world position;
-- can compile a new scene without fitting target-specific parameters.
+真正要强调：
 
-The PointNet-like architecture itself is not the novelty.
+- 所有场景共享参数；
+- 不使用 scene ID；
+- 不使用 unit embedding；
+- 不使用 per-instance learned residual；
+- 不使用 scene-normalized world position；
+- 新场景只需要 geometry preprocessing，不需要 target-scene visibility label。
 
-## 4.2 Geometry-only potential occlusion relations
+这一设计是“scene-independent compilation”的第一块基础。
 
-Current graph:
+---
 
-- 12 fixed icosahedral directions;
-- top-8 potential occluders per target/direction;
-- AABB orthographic overlap and depth ordering;
-- no visibility labels.
+# 4.2 Geometry-Only Potential Occlusion Relations
 
-The relation artifact must declare `usesVisibilityLabels=false`.
+当前 relation graph 固定为：
 
-Eight-dimensional edge feature:
+- 12 个正二十面体方向；
+- 每个 target / anchor 最多 top-8 potential occluders；
+- 根据 AABB orthographic overlap 和 depth ordering 构造；
+- 不读取 visibility labels。
 
-1–3. relative direction;  
-4. \(\log(1+d_{ij}/r_i)\);  
-5. \(\log(r_j/r_i)\);  
-6. target projected-overlap ratio;  
-7. source projected-overlap ratio;  
-8. \(\log(1+\mathrm{gap}/r_i)\).
+relation artifact 必须显式声明：
 
-The relation graph is deterministic geometry preprocessing, not learned scene memory.
+```text
+usesVisibilityLabels = false
+```
 
-## 4.3 Single-layer relation field compiler
+8D edge feature：
 
-For each edge:
+1–3. relative direction；  
+4. (log(1+d_{ij}/r_i))；  
+5. (log(r_j/r_i))；  
+6. target projected-overlap ratio；  
+7. source projected-overlap ratio；  
+8. (log(1+mathrm{gap}/r_i))。
 
-\[
-[z_i,z_j,e_{ij}]\in\mathbb R^{72}
-\]
+核心解释：
 
-through:
+> 一个 target 自身的局部形状无法知道“它周围有哪些可能挡住它的物体”；但 potential occlusion structure 可以在完全不读取 visibility label 的情况下从几何关系构造。
 
-\[
+relation graph 不是 learned scene memory，而是：
+
+> deterministic geometry proxy。
+
+---
+
+# 4.3 Single-Layer Relation Field Compiler
+
+每条关系边：
+
+[
+[z_i,z_j,e_{ij}]
+\in\mathbb R^{72}
+]
+
+经过：
+
+[
 72\rightarrow64\rightarrow32.
-\]
+]
 
-Within each target-anchor group:
+得到 edge message：
 
-\[
-h_{ik}=\sum_j\alpha_{ijk}m_{ijk}.
-\]
+[
+m_{ijk}.
+]
 
-The compiler also keeps:
+在每个 target-anchor group 内做 attention aggregation：
 
-- \(\log(1+n_{ik})\);
-- overlap sum.
+[
+h_{ik}
+=
+\sum_j
+\alpha_{ijk}m_{ijk}.
+]
 
-Rationale:
+同时显式保留：
 
-Softmax attention normalizes neighborhood mass, so count and overlap statistics restore information about how much occluding evidence exists.
+- (log(1+n_{ik}))；
+- projected overlap sum。
 
-## 4.4 Anchor responses and fixed directional projection
+为什么要保留这两个统计量：
 
-Base branch:
+> softmax attention 会把 neighborhood mass 归一化；如果只看 weighted average，一个强 occluder 与多个同等强度 occluder 的“遮挡证据总量”可能被抹平。
 
-\[
-[z_i,a_k]:35\rightarrow32\rightarrow7.
-\]
+因此 count / overlap sum 恢复“遮挡证据有多少”的信息。
 
-Relation delta:
+---
 
-\[
-[h_{ik},\log(1+n_{ik}),o_{ik},a_k]
-:37\rightarrow32\rightarrow7.
-\]
+# 4.4 Anchor Responses 与固定方向投影
 
-Response:
+geometry-only base：
 
-\[
-q_{ik}=q^{base}_{ik}+\mathbf1[n_{ik}>0]\Delta q_{ik}.
-\]
+[
+[z_i,a_k]
+:
+35\rightarrow32\rightarrow7.
+]
 
-Twelve anchor responses:
+relation delta：
 
-\[
+[
+[h_{ik},
+\log(1+n_{ik}),
+o_{ik},
+a_k]
+:
+37\rightarrow32\rightarrow7.
+]
+
+最终：
+
+[
+q_{ik}
+=
+q^{base}_{ik}
++
+\mathbf1[n_{ik}>0]\Delta q_{ik}.
+]
+
+12 个 anchor response：
+
+[
 Q_i\in\mathbb R^{12\times7}.
-\]
+]
 
-They are projected with the fixed first-order basis:
+然后使用固定一阶方向基：
 
-\[
+[
 [1,d_x,d_y,d_z]
-\]
+]
 
-using a Moore–Penrose pseudoinverse:
+的 Moore–Penrose pseudoinverse 投影：
 
-\[
-Q_i\rightarrow C_i\in\mathbb R^{4\times7}.
-\]
+[
+Q_i
+\rightarrow
+C_i\in\mathbb R^{4\times7}.
+]
 
-The projection is fixed, not learned. Runtime field size is 28 values.
+最终 runtime field 只有：
 
-Key hypothesis:
+[
+4\times7=28
+]
 
-> A structured low-order directional field provides a better deployment representation than an equally compact unrestricted relation latent.
+个值。
 
-This is tested by `GENERIC_RELATION_28`.
+重要点：
 
-## 4.5 Analytic monotone survival field
+> projection matrix 是固定 buffer，不是 learned Parameter。
 
-The 7 directional parameters represent:
+这使得结构化 field 与普通 latent 有明确区分。
 
-- no-hit mass;
-- two mixture logits;
-- two positive locations;
-- two positive scales.
+---
 
-Normalized distance:
+# 4.5 Structured Analytic Survival Field
 
-\[
-t=\log(1+d/r_i).
-\]
+7 个方向参数最终对应：
 
-The analytic transform is constructed so:
+- one no-hit mass；
+- two mixture logits；
+- two positive locations；
+- two positive scales。
 
-\[
+归一化距离：
+
+[
+t=
+\log(1+d/r_i).
+]
+
+该 analytic transform 被构造为满足：
+
+[
 S(0)=1
-\]
+]
 
-and survival is non-increasing with distance along a fixed direction.
+并且固定方向上：
 
-Writing rule:
+[
+d_2>d_1
+\Rightarrow
+S(d_2)\le S(d_1).
+]
 
-> Do not call \(S\) the exact physical visibility probability. It is a structured intermediate occlusion/survival statistic.
+因此它具有明确的 monotone inductive bias。
 
-## 4.6 Nine-support from-region query
+但论文里一定要强调：
 
-Disk view-cell:
+> (S) 是 structured intermediate occlusion/survival statistic，不是真实 object visibility probability。
 
-- center + 8 ring points.
+最终 PVS visibility 仍由后面的 visibility head 预测。
 
-Oriented-box view-cell:
+---
 
-- center + 8 corners.
+# 4.6 Nine-Support From-Region Query
 
-For each support evaluate \(S_{ik}\), then compress to:
+disk view-cell：
 
-\[
-[S_{center},S_{max},S_{mean},S_{min}].
-\]
+- center；
+- 8 个等角 ring points。
 
-Important distinction:
+oriented-box view-cell：
 
-> one compiled field + nine analytic evaluations + one small MLP, rather than nine complete neural visibility inferences.
+- center；
+- 8 corners。
 
-## 4.7 Query geometry and visibility head
+同一个 (C_i) 在 9 个 support 上解析查询：
 
-Current query geometry is 16D and contains:
+[
+S_{ik}.
+]
 
-- target→region world direction;
-- region→target direction in camera right/up/forward;
-- normalized distance/radius terms;
-- normalized region extents;
-- FOV;
-- region type;
-- near/far normalized terms.
+最终压成：
 
-Full head input:
+[
+[
+S_{center},
+S_{max},
+S_{mean},
+S_{min}
+].
+]
 
-\[
+需要强调：
+
+> 这不是把一个完整 point-visibility neural model 跑 9 次。
+
+而是：
+
+[
+\boxed{
+\text{one compiled field}
++
+\text{nine cheap analytic evaluations}
++
+\text{one tiny head}
+}
+]
+
+---
+
+# 4.7 Query Geometry 与最终 Visibility Head
+
+当前 query geometry 是 16D，主要包含：
+
+- target → region center 的 world direction；
+- region → target 在 camera right/up/forward 中的方向；
+- normalized distance / radius；
+- normalized region extents；
+- FOV；
+- region type；
+- near / far normalized terms。
+
+Full 输入：
+
+[
 32+4+16=52.
-\]
+]
 
-Head:
+最终 head：
 
-\[
+[
 52\rightarrow32\rightarrow1.
-\]
+]
 
-This should be the endpoint of the inference method section.
+输出 visibility logit：
 
-## Hypothesis-driven representation controls
+[
+z_i.
+]
 
-### Geometry Field
+到这里，runtime inference method 才完整。
 
-Removes surrounding relation context but retains the structured field and same query.
+---
 
-Question:
+# 4.8 两个最关键的 Representation Controls
 
-> Is target-local geometry alone sufficient for useful conservative visibility?
+## Geometry Field
 
-### Generic Relation 28
+去掉 surrounding relation context，但：
 
-Keeps relation evidence and the same 28-value runtime budget, but removes the analytic survival-field structure.
+- 保留 32D local geometry；
+- 仍生成 4×7 structured field；
+- 使用相同 9-point query；
+- 使用相同 shared-boundary objective；
+- network capacity 尽量匹配。
 
-Question:
+回答：
 
-> Does structure help beyond an unconstrained compact relation latent?
+> **target 自身 geometry 是否足以推断遮挡？**
+
+如果它很安全但 culling 差，说明：
+
+> local shape 能提供 conservative prior，但 surrounding occlusion context 才带来真正有效的遮挡剔除能力。
+
+## Generic Relation 28
+
+保留：
+
+- relation input；
+- 12×7 relation evidence；
+- 28D runtime budget；
+- 同一 shared-boundary objective。
+
+但把 structured analytic field 替换成 unrestricted 28D latent。
+
+回答：
+
+> **Full 的收益来自 relation information 本身，还是来自 structured monotone field representation？**
+
+这是 V5 最关键的结构消融之一。
