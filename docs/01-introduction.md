@@ -1,89 +1,99 @@
-# 01 — Introduction
+# 01 — Introduction 写作方案
 
-## Section goal
+## 本节目标
 
-The Introduction must make the reader believe that **pre-geometry visibility is a distinct systems/graphics problem**, not just a different neural-network implementation.
+Introduction 的任务不是介绍网络，而是让读者接受：
 
-## Recommended logic
+> **“几何尚未到达客户端时的可见性”是一个独立且重要的图形学 / Web streaming 问题。**
 
-### Paragraph 1 — Progressive Web3D makes prioritization unavoidable
+## 推荐行文逻辑
 
-Start from the system constraint:
+### 第 1 段：Progressive Web3D 首先是“优先级问题”
 
-- large scenes exceed acceptable startup transfer;
-- browsers must progressively request resources;
-- the first-order question is **which resource should arrive next?**
+从系统约束开始：
 
-Mention current practical signals:
+- 大规模 Web3D 场景无法在启动阶段一次性传完；
+- 浏览器必须按需、渐进式获取资源；
+- 因此系统必须持续回答：**what should be downloaded next?**
 
-- view frustum;
-- distance;
-- hierarchy;
-- geometric error / SSE;
-- cache state.
+先列出现有 pre-download 信号：
 
-Do not start from “occlusion culling is important”.
+- frustum；
+- distance；
+- hierarchy；
+- geometric error / SSE；
+- cache state。
 
-### Paragraph 2 — Existing pre-download signals miss occlusion
+不要从“occlusion culling 很重要”起笔。
 
-Use a simple example:
+### 第 2 段：这些 pre-download 信号缺少遮挡信息
+
+用一个极简单的例子：
 
 ```text
-camera → building A → building B
+camera → Building A → Building B
 ```
 
-Both A and B can be:
+A、B 都可能：
 
-- inside the frustum;
-- close to the camera;
-- high SSE / high projected importance;
+- 在 frustum 内；
+- 距离很近；
+- projected size / SSE 很大；
 
-while B is fully occluded by A.
+但 B 完全被 A 遮挡。
 
-Thus “relevance before download” lacks an occlusion term.
+因此：
 
-### Paragraph 3 — The circular dependency
+> “几何是否值得优先下载”与“几何是否在视锥内”不是同一个问题。
 
-State the key contradiction:
+### 第 3 段：提出 circular dependency
 
-> Streaming would benefit from visibility before transfer, while conventional visibility algorithms derive visibility from scene geometry that may not yet be resident.
+核心矛盾：
 
-Introduce **pre-geometry visibility**.
+> Progressive streaming 希望在传输前知道 visibility；但传统 visibility computation 往往又依赖尚未传输到客户端的 scene representation。
 
-This paragraph should explicitly distinguish:
+在这里第一次定义：
 
-- from-point runtime culling;
-- from-region PVS;
-- pre-geometry from-region visibility.
+> **pre-geometry visibility**
 
-### Paragraph 4 — Why existing PVS does not directly remove the bootstrap problem
+并明确区分：
 
-Acknowledge strong prior work:
+- from-point runtime culling；
+- from-region PVS；
+- pre-geometry from-region visibility。
 
-- precomputed PVS;
-- online PVS;
-- Camera Offset Space;
-- Trim Regions;
-- Disocclusion Buffer;
-- NeuralPVS.
+### 第 4 段：现有 PVS 为什么没有直接解决 bootstrap 问题
 
-Do not say these methods are “too slow” in general.
+公平承认已有强方法：
 
-Instead say they assume that the visibility processor has access to a sufficiently detailed representation of the scene.
+- classical precomputed PVS；
+- Camera Offset Space；
+- Guided Visibility Sampling++；
+- Trim Regions；
+- Disocclusion Buffer；
+- NeuralPVS。
 
-### Paragraph 5 — Key insight
+不要写：
 
-The server/content pipeline *does* have geometry offline.
+> existing PVS is too slow.
 
-Therefore the useful question is not:
+更准确：
 
-> Can the browser reconstruct the full scene for visibility?
+> 这些方法通常假设执行 visibility 的一方已经拥有足够详细的 scene representation。
 
-but:
+### 第 5 段：关键 insight
 
-> Can geometry-dependent occlusion knowledge be compiled into a much smaller transferable asset?
+服务器/内容构建阶段本来就拥有完整几何。
 
-Introduce:
+因此问题不应该是：
+
+> 浏览器能否为了 visibility 再恢复一份完整场景？
+
+而应该是：
+
+> 能否把 geometry-dependent occlusion knowledge 离线编译成更小、更适合网络传输的 visibility asset？
+
+引出：
 
 ```text
 scene geometry
@@ -95,38 +105,53 @@ browser region query
 visibility score
 ```
 
-### Paragraph 6 — Why a shared boundary matters
+### 第 6 段：为什么 shared boundary 是方法的一部分
 
-If every new scene needs visibility labels to calibrate a threshold, the “deploy on unseen geometry” story is weakened.
+如果每个新场景都必须：
 
-Therefore the method trains a common `logit = 0` boundary with conservative safety semantics across heterogeneous domains.
+1. 收集该场景 visibility labels；
+2. 重新 calibration threshold；
 
-This is important enough to appear in the Introduction, not only in Training Details.
+那么“geometry-only compile + zero-shot deployment”的故事会被削弱。
 
-### Paragraph 7 — Web integration
+因此 V5 不只是学 ranking，而是希望：
 
-Explain that the score is not a separate download model.
+[
+z=0
+]
 
-Instance scores are aggregated to resources and injected into an otherwise standard progressive scheduler.
+在不同 source/domain 上具有一致的 conservative semantics。
 
-The novelty is the availability of an occlusion-aware score before detailed content residency.
+这一点值得出现在 Introduction，而不是只藏在 Training Details。
 
-### Paragraph 8 — Contributions
+### 第 7 段：Web integration
 
-Use 3–4 contributions, not 7 architecture bullets.
+说明最终 visibility score 不会再训练一套独立“下载网络”。
 
-Recommended contributions:
+而是：
 
-1. pre-geometry from-region visibility formulation;
-2. geometry-compiled compact occlusion field;
-3. shared conservative cross-domain boundary;
-4. Web3D integration/evaluation.
+- instance score；
+- 聚合到 GLB/resource；
+- 注入已有 progressive scheduler。
 
-## Teaser / Figure 1
+因此：
 
-Figure 1 should explain the problem, not the neural architecture.
+> 调度器不是主要 novelty，**pre-content visibility signal 的可获得性**才是。
 
-Suggested layout:
+### 第 8 段：贡献总结
+
+建议只保留 3–4 点：
+
+1. pre-geometry from-region visibility formulation；
+2. geometry-compiled compact occlusion field；
+3. shared conservative boundary learning；
+4. Web3D streaming integration + evaluation。
+
+## Figure 1 / Teaser
+
+第一张图应该解释**问题和系统收益**，而不是画完整网络。
+
+建议：
 
 ```text
 Server                           Browser
@@ -144,16 +169,22 @@ compact visibility asset ───────────┤
                         useful geometry arrives first
 ```
 
-Include one occluded resource that frustum/SSE would otherwise prioritize.
+至少画出一个：
 
-## What not to put in the Introduction
+- frustum 内；
+- 但被前景建筑遮挡；
 
-Avoid:
+的资源，说明为什么传统 pre-download metadata 不够。
 
-- exact 256-point input;
-- exact 4×7 field;
-- 12 anchors / top-8;
-- SmoothMax equations;
-- all metric names.
+## Introduction 中不宜过早出现
 
-Those belong later.
+不要在 Introduction 里塞：
+
+- 256 点；
+- 4×7；
+- 12 anchors；
+- top-8；
+- SmoothMax 公式；
+- 大量 metric 名称。
+
+这些留到 Method / Evaluation。
