@@ -2,18 +2,11 @@
 
 ## 本节目标
 
-这一节要解释：
+这一节解释 V5 为什么采用 safety-oriented objective，而不是只优化普通分类准确率或 PR-AUC。
 
-> 为什么 V5 不满足于“分类准确率高 / PR-AUC 高”，而必须让一个固定的 $z=0$ 边界在不同场景中具有一致、安全的 deployment semantics。
+PVS 中 false negative 与 false positive 的代价明显不对称：漏掉真正可见的 unit 会直接影响画面完整性，而额外保留不可见 unit 主要增加冗余计算或传输。因此训练目标需要在提升 culling efficiency 的同时显式约束 visible misses。
 
-如果每个新场景都需要：
-
-- target-scene visibility labels；
-- 单独 calibration threshold；
-
-那么“geometry-only compile + deploy to unseen scene”的故事就会变弱。
-
-因此当前正式 V5 的训练目标本身就是论文方法的一部分。
+当前 V5 进一步使用统一的 $z=0$ operating point，便于在不同场景和实验中采用一致的决策规则；这是一种训练与部署选择，而不是对离线阶段“不能生成 visibility labels”这一条件的依赖。
 
 ---
 
@@ -69,7 +62,7 @@ $$
 
 目标是：
 
-> **让零点本身成为跨场景可解释、可直接部署的 conservative boundary。**
+> **让零点成为跨场景一致、便于比较和部署的 conservative operating point。**
 
 ---
 
@@ -327,7 +320,7 @@ PBCE control 保留：
 
 如果 PBCE ranking 不差、但 fixed-zero safety 明显失败，那么这是非常好的故事：
 
-> **问题不只是学会排序，而是学会一个可以直接跨场景部署的决策边界。**
+> **该对照用于验证 safety-oriented objective 是否能在统一 operating point 下取得更好的 safety–efficiency trade-off。**
 
 ---
 
