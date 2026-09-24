@@ -122,7 +122,7 @@ visibility-guided transmission 早已有先例。
 
 > **为 progressive Web3D 提供一个 detailed-content residency 之前即可获得的 occlusion-aware relevance signal。**
 
-resource-level ranking/filtering 是这个 signal 的自然应用。
+unit-level filtering 与 progressive content ordering 是这个 signal 的自然应用。
 
 ---
 
