@@ -52,13 +52,11 @@ $$
 - 不使用 unit embedding；
 - 不使用 per-instance learned residual；
 - 不使用 scene-normalized world position；
-- 新场景只需要 geometry preprocessing，不需要 target-scene visibility label。
-
-这一设计是“scene-independent compilation”的第一块基础。
+这一设计使 local geometry descriptor 不依赖 scene ID 或 per-instance memory，并便于在不同场景间共享模型参数。
 
 ---
 
-# 4.2 Geometry-Only Potential Occlusion Relations
+# 4.2 Potential-Occluder Relations
 
 当前 relation graph 固定为：
 
@@ -73,14 +71,9 @@ $$
 
 - 离线 12 directions：训练/评价的 camera-direction coverage；
 - relation 12 anchors：geometry-only occlusion context 的模型内部方向基。
-- 根据 AABB orthographic overlap 和 depth ordering 构造；
-- 不读取 visibility labels。
+- 根据 AABB orthographic overlap 和 depth ordering 构造。
 
-relation artifact 必须显式声明：
-
-```text
-usesVisibilityLabels = false
-```
+当前实现中的 relation graph 由几何关系确定；论文重点放在它如何表达 surrounding occlusion context，而不是把“是否使用 visibility labels”作为方法贡献。
 
 8D edge feature：
 
@@ -95,9 +88,7 @@ usesVisibilityLabels = false
 
 > 一个 target 自身的局部形状无法知道“它周围有哪些可能挡住它的物体”；但 potential occlusion structure 可以在完全不读取 visibility label 的情况下从几何关系构造。
 
-relation graph 不是 learned scene memory，而是：
-
-> deterministic geometry proxy。
+relation graph 提供的是一个紧凑的 potential-occluder context，用于后续 relation compiler 聚合周围遮挡关系。
 
 ---
 
