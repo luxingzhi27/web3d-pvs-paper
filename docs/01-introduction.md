@@ -146,7 +146,7 @@ $$
 
 不要在这里提：
 
-- (z=0)；
+- $z=0$；
 - calibration；
 - dual；
 - SmoothMax；
@@ -220,7 +220,7 @@ progressive resource delivery
 
 不要在 Introduction 出现：
 
-- (z=0) 数学定义；
+- $z=0$ 数学定义；
 - target calibration；
 - SmoothMax；
 - shared dual；
@@ -299,8 +299,8 @@ P7  contributions + headline results
 
 ## 完全移到 Method
 
-- (h_{keep})、(h_{miss})；
-- (J_{extra})；
+- $h_{\mathrm{keep}}$、$h_{\mathrm{miss}}$；
+- $J_{\mathrm{extra}}$；
 - blended safety risk；
 - SmoothMax；
 - shared dual；
