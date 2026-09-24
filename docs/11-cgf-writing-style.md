@@ -1,114 +1,203 @@
-# 11 — CGF / Graphics Writing Style Guide
+# 11 — 面向 CGF / 图形学论文的写作规则
 
-## Lead with the graphics problem
+## 1. 从 Graphics Problem 开始，而不是从 Neural Architecture 开始
 
-Prefer:
+优先：
 
-> Progressive Web3D needs an occlusion signal before content residency.
+> Progressive Web3D 缺少 detailed content residency 之前的 occlusion signal。
 
-Avoid:
+避免：
 
 > We propose a novel neural network with three modules.
 
-## Explain design choices through constraints
+---
 
-For every component, answer:
+## 2. 所有 Module 都必须由“设计约束”解释
 
-- what graphics/system constraint requires it?
-- what simpler control tests the hypothesis?
+每个模块都问：
 
-Examples:
+1. 为什么系统问题要求它存在？
+2. 更简单的 control 是什么？
+3. 消融如何验证这个设计？
 
-- relation context exists because target-local shape does not encode surrounding occluders;
-- the fixed directional field exists because the runtime asset must remain compact and analytically queryable;
-- the shared boundary exists because target-scene calibration weakens label-free deployment.
+例如：
 
-## Separate fact, hypothesis, result
+### Relation context
 
-Fact:
+不是因为“GNN 很强”。
 
-> We use a fixed first-order directional basis.
+而是因为：
 
-Hypothesis:
+> target 自身形状不知道周围谁会挡住它。
 
-> The structure may transfer more predictably than an unrestricted latent.
+### Structured directional field
 
-Result:
+不是因为“SH 很流行”。
 
-> Full outperforms Generic-28 under metric X.
+而是因为：
 
-Do not write a hypothesis as if already proven.
+> 需要一个 compact、fixed-size、continuous、cheap-to-query 的 runtime representation。
 
-## Avoid novelty inflation
+### Shared zero boundary
 
-Do not claim:
+不是因为“constrained optimization 更高级”。
 
-- first use of visibility in streaming;
-- first neural visibility;
-- first online PVS;
-- first client-side content selection.
+而是因为：
 
-Claim the actual intersection.
+> 新场景如果必须有 label 才能重新 calibration，就无法形成真正的 label-free deployment story。
 
-## Prefer hypothesis-driven ablations
+---
 
-Good:
+## 3. 严格区分 Fact / Hypothesis / Result
 
-> Full vs. Geometry Field tests whether surrounding occlusion context is necessary.
+### Fact
 
-Weak:
+> 我们使用固定一阶方向 basis。
 
-> Removing the graph reduces metric X.
+### Hypothesis
 
-## Safety-first language
+> 结构化 field 可能比 unrestricted latent 更容易跨场景保持稳定的 directional behavior。
 
-For conservative PVS:
+### Result
 
-- Weighted Recall / LCB first;
-- culling efficiency second.
+> Full 在某指标上显著优于 Generic-28。
 
-Do not headline Accuracy/F1.
+不能把 hypothesis 在 Method 里提前写成已经证明的事实。
 
-## Be precise about “geometry”
+---
 
-Prefer:
+## 4. 避免 Novelty Inflation
 
-- detailed streamed geometry;
-- runtime scene representation;
-- proxy geometry;
-- compact metadata.
+不要写：
 
-Avoid saying a method needs the “full detailed mesh” unless that is strictly true.
+- first visibility-guided streaming；
+- first neural visibility；
+- first online PVS；
+- first pre-content selection。
 
-## Be precise about generalization
+真正创新是：
 
-Distinguish:
+> 多个已有方向的一个特定交叉 operating point。
 
-- shared in-domain;
-- LOSO;
-- external blind holdout;
-- target-calibrated diagnostics.
+---
 
-Do not call target-calibrated performance zero-shot.
+## 5. 消融必须 Hypothesis-Driven
 
-## Keep V4 and V5 evidence separate
+好的写法：
 
-V4 can be described as:
+> Full vs Geometry Field tests whether surrounding occlusion context is necessary.
 
-- historical deployed system;
-- legacy baseline;
-- engineering reference.
+不够好的写法：
 
-V5 is the paper method.
+> Removing relation module decreases performance by X%.
 
-Do not merge them into a single result row without an actual V5 deployment.
+前者回答科学问题，后者只是模型拆模块。
 
-## Section transitions
+---
 
-Each section should motivate the next:
+## 6. Safety-First
 
-- Related Work → missing operating point.
-- Problem Formulation → representation requirements.
-- Representation → need for a stable deployment boundary.
-- Boundary Learning → deployable score.
-- Web Integration → experimental questions.
+对于 conservative PVS：
+
+正文排序：
+
+1. Weighted Recall；
+2. LCB；
+3. Bad Cull；
+4. culling efficiency。
+
+不要让：
+
+- Accuracy；
+- F1；
+
+成为主 headline。
+
+---
+
+## 7. “Geometry”必须精确
+
+优先使用：
+
+- detailed streamed geometry；
+- runtime scene representation；
+- proxy geometry；
+- compact metadata。
+
+不要随便写：
+
+> “all prior methods require the full detailed mesh”。
+
+很多现代 PVS 只需要一种足够的 scene representation，不一定是原始完整 mesh。
+
+---
+
+## 8. “Generalization”必须精确
+
+严格区分：
+
+- shared in-domain；
+- LOSO；
+- external blind holdout；
+- target-calibrated diagnostic。
+
+如果使用了 target calibration，就不要叫：
+
+> zero-shot decision boundary transfer。
+
+---
+
+## 9. V4 与 V5 的证据不能混
+
+V4 可以是：
+
+- legacy deployed model；
+- historical system baseline；
+- engineering reference。
+
+V5 是论文方法。
+
+除非 V5 真正完成对应 runtime / streaming 实验，否则不能把：
+
+- V5 model metrics；
+- V4 browser runtime；
+
+拼成同一个“ours”。
+
+---
+
+## 10. 每一节都要自然引向下一节
+
+建议：
+
+### Related Work
+
+收束到：
+
+> missing operating point。
+
+### Problem Formulation
+
+收束到：
+
+> representation requirements。
+
+### GCOF Method
+
+收束到：
+
+> representation 有了，但需要一个无需 target calibration 的 deployment boundary。
+
+### Shared Boundary Learning
+
+收束到：
+
+> 得到可部署 score。
+
+### Web Integration
+
+收束到：
+
+> 需要验证 safety、runtime 和 streaming utility。
+
+这样整篇论文才是一条完整论证链，而不是若干独立章节。
