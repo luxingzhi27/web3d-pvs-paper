@@ -21,7 +21,7 @@
 
 定义：
 
-[
+$$
 h_{keep}(z)
 =
 \frac{
@@ -29,9 +29,9 @@ h_{keep}(z)
 }{
 \ln2
 },
-]
+$$
 
-[
+$$
 h_{miss}(z)
 =
 \frac{
@@ -39,31 +39,31 @@ h_{miss}(z)
 }{
 \ln2
 }.
-]
+$$
 
 在：
 
-[
+$$
 z=0
-]
+$$
 
 处：
 
-[
+$$
 h_{keep}(0)
 =
 h_{miss}(0)
 =
 1.
-]
+$$
 
 最终 deployment decision：
 
-[
+$$
 z\ge0
 \Rightarrow
 \text{keep / potentially visible}.
-]
+$$
 
 这里的目标不是学习一个完美 calibrated probability。
 
@@ -77,7 +77,7 @@ z\ge0
 
 对于 source scene (s)：
 
-[
+$$
 J_{extra}^{(s)}
 =
 \frac{
@@ -86,7 +86,7 @@ q_i h_{keep}(z_i)
 }{
 G_s
 }.
-]
+$$
 
 其中：
 
@@ -99,9 +99,9 @@ G_s
 
 因此：
 
-[
+$$
 J_{extra}
-]
+$$
 
 是 efficiency side。
 
@@ -111,32 +111,32 @@ J_{extra}
 
 定义 source scene 中正例的平均 visual weight：
 
-[
+$$
 \mu_s
 =
 W_s/G_s.
-]
+$$
 
 把每个 visible unit 的安全权重写成：
 
-[
+$$
 \tilde w_i
 =
 \rho
 +
 (1-\rho)
 \frac{w_i}{\mu_s}.
-]
+$$
 
 当前正式配置：
 
-[
+$$
 \rho=0.1.
-]
+$$
 
 于是 safety risk：
 
-[
+$$
 R_s
 =
 \frac{
@@ -147,7 +147,7 @@ h_{miss}(z_i)
 }{
 G_s
 }.
-]
+$$
 
 这个设计同时保留两层含义：
 
@@ -188,66 +188,66 @@ visual contribution 大的 visible unit 权重更高。
 
 总计：
 
-[
+$$
 K=10.
-]
+$$
 
 每个域维护 detached risk EMA：
 
-[
+$$
 m_s
 \leftarrow
 \beta m_s
 +
 (1-\beta)R_s,
-]
+$$
 
 其中：
 
-[
+$$
 \beta=0.99.
-]
+$$
 
 根据：
 
-[
+$$
 p_s=
 \operatorname{softmax}
 (\alpha m_s)
-]
+$$
 
 分配 worst-domain-sensitive 权重，当前：
 
-[
+$$
 \alpha=16.
-]
+$$
 
 robust risk 使用 smooth approximation of max：
 
-[
+$$
 R_{robust}
 \approx
 \max_s R_s.
-]
+$$
 
 最终优化目标：
 
-[
+$$
 \min_\theta
 J_{extra}
-]
+$$
 
 subject to：
 
-[
+$$
 R_{robust}
 \le
 0.01.
-]
+$$
 
 Lagrangian：
 
-[
+$$
 \mathcal L
 =
 J_{extra}
@@ -256,7 +256,7 @@ J_{extra}
 (
 R_{robust}-0.01
 ).
-]
+$$
 
 只维护：
 
