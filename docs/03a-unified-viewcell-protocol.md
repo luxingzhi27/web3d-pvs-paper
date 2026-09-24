@@ -79,21 +79,21 @@ unit = BIM 构件。
 
 ## 水平角
 
-[
+$$
 0^circ, 90^circ, 180^circ, 270^circ
-]
+$$
 
 ## 俯仰角
 
-[
+$$
 -15^circ, 0^circ, 15^circ
-]
+$$
 
 因此每个物理中心展开：
 
-[
+$$
 4	imes3=12
-]
+$$
 
 个固定观察方向。
 
@@ -121,9 +121,9 @@ unit = BIM 构件。
 
 对于每个 scene，登记圆盘半径：
 
-[
+$$
 r_s.
-]
+$$
 
 view-cell 中：
 
@@ -147,9 +147,9 @@ view-cell 中：
 
 每个 view-cell 的区域 GT 使用：
 
-[
+$$
 32
-]
+$$
 
 个 camera positions。
 
@@ -177,9 +177,9 @@ view-cell 中：
 
 在每个 view-cell 的 32 个位置上，以：
 
-[
+$$
 mathrm{FOV}_y = 66^circ
-]
+$$
 
 执行硬件 Color-ID rendering。
 
@@ -189,18 +189,18 @@ mathrm{FOV}_y = 66^circ
 
 如果它在至少一个采样位置中可见：
 
-[
+$$
 y_i(mathcal B)=1.
-]
+$$
 
 因此：
 
-[
+$$
 mathrm{PVS}(mathcal B)
 =
 igcup_{m=1}^{32}
 V(c_m).
-]
+$$
 
 这里表示：
 
@@ -214,12 +214,12 @@ V(c_m).
 
 对于 unit (u_i)，其区域 visual weight 使用：
 
-[
+$$
 w_i(mathcal B)
 =
 max_{m=1,ldots,32}
 w_i(c_m),
-]
+$$
 
 即 32 个 Color-ID samples 中最大屏幕覆盖贡献。
 
@@ -241,41 +241,41 @@ w_i(c_m),
 
 对于圆盘半径 (r_s)，从 region center 沿当前固定观察方向向后移动：
 
-[
+$$
 Delta =
 rac{r_s}{	an 30^circ}.
-]
+$$
 
 在该后退位置构造：
 
-[
+$$
 66^circ
-]
+$$
 
 FOV 的 candidate frustum，并对所有 unit AABB 做 frustum test。
 
 得到：
 
-[
+$$
 mathcal C(mathcal B).
-]
+$$
 
 必须检查：
 
-[
+$$
 mathrm{GT}_{visible}
 subseteq
 mathcal C(mathcal B).
-]
+$$
 
 如果出现：
 
-[
+$$
 u_iin mathrm{GT}_{visible}
 quad	ext{但}quad
 u_i
 otin mathcal C,
-]
+$$
 
 该样本 / candidate protocol 应视为失败。
 
@@ -431,9 +431,9 @@ V5 在这些 support 上只做：
 
 并得到：
 
-[
+$$
 S_{center}, S_{max}, S_{mean}, S_{min}.
-]
+$$
 
 它们不是：
 
