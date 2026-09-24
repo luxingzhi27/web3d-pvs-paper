@@ -56,15 +56,15 @@
 
 让 reviewer 先接受：
 
-[
+$$
 	ext{from-region visibility}
-]
+$$
 
 和：
 
-[
+$$
 	ext{progressive delivery}
-]
+$$
 
 之间是自然关系，而不是我们人为拼接两个课题。
 
@@ -98,11 +98,11 @@
 
 进一步把 runtime PVS computation 学习成：
 
-[
+$$
 	ext{runtime geometry representation}
 ightarrow
 	ext{PVS}.
-]
+$$
 
 真正要指出的共同点不是“它们都慢”，而是：
 
@@ -120,15 +120,15 @@
 
 因此出现：
 
-[
+$$
 	ext{visibility helps decide what to download}
-]
+$$
 
 但：
 
-[
+$$
 	ext{visibility computation often assumes scene content is already available}.
-]
+$$
 
 这才是本文真正的问题。
 
@@ -372,18 +372,18 @@ Trim Regions 非常典型：
 
 论文真正的 Introduction headline 应该集中在：
 
-[
+$$
 \boxed{
 \text{visibility before detailed geometry residency}
 }
-]
+$$
 
 以及：
 
-[
+$$
 \boxed{
 \text{compile occlusion context into a compact client-queryable representation}
 }
-]
+$$
 
 这两个概念上。
