@@ -165,16 +165,11 @@ calibrated threshold 仅作为诊断，用于分析模型的 ranking / upper-bou
 
 在 architecture、checkpoint 和 protocol 冻结后，对未参与设计和训练的 external scene 进行评价。
 
-该场景不得用于：
-
-- architecture selection；
-- checkpoint selection；
-- hyperparameter tuning；
-- threshold tuning。
+为保证 external holdout 的独立性，该场景不用于 architecture、checkpoint 或 hyperparameter selection。visibility labels 可以用于正式评价；若进行 target calibration，则应与 fixed operating point 结果分开报告。
 
 本节回答：
 
-> geometry-compiled visibility representation 能否在不使用 target-scene visibility fitting 的情况下迁移到未见场景？
+> frozen model 与 compact visibility representation 在 held-out / external scene 上具有怎样的迁移能力？
 
 ---
 
