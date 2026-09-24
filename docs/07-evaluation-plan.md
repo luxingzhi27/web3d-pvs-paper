@@ -216,29 +216,28 @@ blind holdout 绝不能用于：
 
 使用 V5 score sidecar。
 
-threshold-free ranking 至少比较：
+threshold-free ordering 统一在 **candidate units** 上比较，例如：
 
 - original / baseline order；
-- projected area / byte；
-- AABB model；
+- distance / projected-area baseline；
+- AABB-based visibility baseline；
 - HZB visible-first；
-- V5 neural score；
-- V5 cost-aware neural score；
-- GT utility / byte oracle。
+- V5 visibility score；
+- GT visibility oracle。
 
-主要指标：
+如果 progressive-delivery 实验需要引入传输成本，可以给每个 unit 关联其实际或标准化 payload cost，并报告：
 
-- Bytes@95；
-- Bytes@99；
-- Bytes@99.9；
+- Cost/Bytes@95；
+- Cost/Bytes@99；
+- Cost/Bytes@99.9；
 - waste-before-99；
 - 固定带宽下的时间换算。
 
-所有 ranking 方法必须共享：
+关键公平性约束：
 
-> **同一个 candidate GLB 集合。**
+> **所有方法必须面对完全相同的 candidate unit set。**
 
-否则结果不可比较。
+论文不讨论 unit 到底层 GLB/file 的打包对应关系；这不影响 visibility/culling 方法本身。
 
 ---
 
@@ -263,7 +262,7 @@ threshold-free ranking 至少比较：
 
 例如：
 
-> Node 里的真实 GLB 下载 + scheduler replay，不等于完整浏览器 first-frame rendering latency。
+> 真实内容传输 + scheduler replay，不等于完整浏览器 first-frame rendering latency。
 
 如果以后补了真实 browser render path，再单独称：
 
@@ -298,7 +297,7 @@ threshold-free ranking 至少比较：
 
 - startup bytes；
 - runtime；
-- Bytes@x；
+- unit delivery cost / Bytes@x；
 - waste；
 - scheduler replay。
 
