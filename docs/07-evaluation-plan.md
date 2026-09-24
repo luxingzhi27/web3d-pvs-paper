@@ -1,255 +1,122 @@
-# 07 — Evaluation Plan（实验与评价计划）
+# 07 — 实验与评价
 
-## 评价目标
+本节与总体大纲第 6 节对应。评价分别刻画可见内容保留、遮挡剔除、排序质量、跨场景迁移以及运行和传输成本。以“可见”为正类，所有方法使用相同候选单元与冻结的数据划分。
 
-实验部分围绕五类证据组织：
+## 6.1 实验设置与评价指标
 
-1. 主模型的 visibility quality；
-2. 已有三组正式消融；
-3. cross-scene generalization；
-4. runtime / storage cost；
-5. progressive delivery。
+### 6.1.1 评价对象与聚合层级
 
-其中只有第 2 类属于 **ablation study**。后面三类用于验证方法的泛化性和系统价值，不引入新的模型消融。
-
----
-
-# 7.1 Experimental Setup
-
-统一说明：
-
-- real / synthetic scenes；
-- horizontal-disk view-cell protocol；
-- 32 个离线 GT camera positions；
-- candidate generation；
-- train / calibration / validation / test split；
-- baselines；
-- metrics。
-
-主评价以 unit-level visibility 为准。
-
-## 主要指标
-
-### Safety
-
-- Weighted Recall；
-- one-sided 95% LCB；
-- Bad Cull。
-
-### Culling Efficiency
-
-- Useful Cull；
-- CNOR；
-- predicted count。
-
-### Ranking Quality
-
-- pose PR-AUC；
-- prevalence；
-- lift。
-
-Accuracy、F1 等只作为补充指标，不作为主结论。
-
----
-
-# 7.2 Main Visibility Results
-
-使用完整 FULL 模型评价主要 visibility performance。
-
-主 operating point 使用固定边界：
+对观察区域或 pose $p$，记候选集合为 $\mathcal C_p$，区域 GT 为 $\mathcal G_p$，预测保留集为 $\widehat{\mathcal G}_p$。令 $n_p=|\mathcal C_p|$，则：
 
 $$
-\tau = 0.
+TP_p=|\widehat{\mathcal G}_p\cap\mathcal G_p|,\quad
+FP_p=|\widehat{\mathcal G}_p\setminus\mathcal G_p|,
 $$
 
-报告：
+$$
+FN_p=|\mathcal G_p\setminus\widehat{\mathcal G}_p|,\quad
+TN_p=|\mathcal C_p\setminus(\widehat{\mathcal G}_p\cup\mathcal G_p)|.
+$$
 
-- per-scene Weighted Recall；
-- worst-scene / scene-equal LCB；
-- Bad Cull；
-- Useful Cull；
-- CNOR；
-- PR-AUC。
+$TN_p$ 是正确剔除的不可见单元数，$FN_p$ 是错误剔除的可见单元数。数据采用第 3 节的后退视锥与区域采样协议，候选集合独立生成，并满足采样 GT 的包含检查。
 
-calibrated threshold 仅作为诊断，用于分析模型的 ranking / upper-bound behavior，不替代 fixed-zero 主结果。
+Aggregate 指标先合并全部 pose 的计数或权重再计算；pose-macro 指标先在每个 pose 内计算，再等权平均。两种口径分别反映整体单元表现和平均观察区域表现，表头明确区分。跨场景均值在各场景指标计算完毕后等权汇总，不直接拼接所有场景的候选。
 
-本节回答：
+### 6.1.2 Weighted Recall：视觉贡献加权召回率
 
-> 完整模型能否在保守 safety 下有效剔除不可见 units？
+单元数量与画面贡献并不等价。普通召回率对占据少量屏幕像素的单元和大面积可见单元赋予相同权重，难以区分二者的遗漏代价。本文以区域采样中单元的最大屏幕覆盖贡献 $w_{pi}$ 衡量其视觉重要性，采用加权召回率（Weighted Recall，WR）：
 
----
+$$
+\operatorname{WR}_{\mathrm{agg}}=
+\frac{\sum_p\sum_{u_i\in\mathcal G_p\cap\widehat{\mathcal G}_p}w_{pi}}
+{\sum_p\sum_{u_i\in\mathcal G_p}w_{pi}},
+\qquad
+w_{pi}=\max_{m=1,\ldots,32}w_i(\mathbf c_{pm}).
+$$
 
-# 7.3 Ablation Study
+WR 衡量被保留的可见贡献比例，使大量屏幕贡献很小的遗漏不会与同数量的大面积缺失被等价计分。这里的“小”指当前观察条件下的屏幕贡献，而非物体的世界尺寸；具有语义重要性的小单元也可能不可忽略。因此同时报告普通 Visible Recall 及其对应的 False Occlusion Rate，以保留对遗漏单元数量的诊断。WR 是单元级视觉贡献代理，不等同于最终画面的像素误差。
 
-消融实验只保留当前已经冻结的三组正式对照。
+单侧 95% 置信下界（Lower Confidence Bound，LCB）按冻结协议对 pose 重采样后计算，用于表达 WR 的统计不确定性。LCB 不表示每个 pose 均达到该召回率，也不是连续视域的保守性证明。
 
-## 7.3.1 Occlusion Context
+### 6.1.3 CNOR：候选归一化遮挡召回率
 
-比较：
+不同 pose 的候选规模和负样本数量可能相差很大。直接汇总的遮挡召回率 $\sum_p TN_p/\sum_p(TN_p+FP_p)$ 会使负候选数量较多的 pose 获得更大权重，即使其主要区别只是候选集合更大。本文采用**候选归一化遮挡召回率（Candidate-Normalized Occlusion Recall，CNOR）**：
 
-- FULL
-- GEOMETRY_FIELD
+$$
+\operatorname{CNOR}=
+\frac{\sum_{p:n_p>0}TN_p/n_p}
+{\sum_{p:n_p>0}(TN_p+FP_p)/n_p}.
+$$
 
-两者保持 structured field、query head 和训练目标一致，主要区别是是否使用 surrounding potential-occluder relations。
+该指标先将各 pose 的正确剔除量和理论可剔除量除以候选数，再计算总体机会利用率，从而消除候选绝对规模对该 pose 贡献的直接放大。令 $N_p=TN_p+FP_p$、$\operatorname{OR}_p=TN_p/N_p$，则：
 
-回答：
+$$
+\operatorname{CNOR}=
+\frac{\sum_p(N_p/n_p)\operatorname{OR}_p}
+{\sum_pN_p/n_p}.
+$$
 
-> target-local geometry 是否足以支持有效的遮挡预测，还是必须显式编码 surrounding occlusion context？
+因此，CNOR 是以“负样本占候选的比例”为权重的 pose 遮挡召回率，**不是所有 pose 严格等权的遮挡召回平均值**。它衡量归一化剔除机会中有多少被模型实现，而不评价可见内容是否被误剔；后者由 WR 和普通召回率共同约束。
 
-重点比较：
+空候选 pose 和没有负样本的 pose 不贡献剔除机会。若整个集合均无负样本，当前实现返回 1，并同时报告零剔除机会；该退化值不作为有效剔除能力的证据。
 
-- Weighted Recall / LCB；
-- Useful Cull；
-- CNOR。
+### 6.1.4 互补指标及用途
 
----
+| 指标 | 定义或计算口径 | 使用目的 |
+|---|---|---|
+| Visible Recall | $\sum_pTP_p/\sum_p(TP_p+FN_p)$；另报 pose-macro | 保留可见单元数量的诊断，补充视觉权重较低单元的覆盖情况。 |
+| False Occlusion Rate | $\sum_pFN_p/\sum_p(TP_p+FN_p)=1-\operatorname{Recall}_{\mathrm{agg}}$ | 直接反映可见单元中被错误剔除的比例。 |
+| Useful Cull Ratio | $\sum_pTN_p/\sum_pn_p$；另报 pose-macro | 表示全部候选中真正减少了多少无效处理，补充 CNOR 的机会归一化含义。 |
+| Bad Cull Ratio | $\sum_pFN_p/\sum_pn_p$；另报 pose-macro | 将错误剔除量与候选工作负载联系；不能代替以可见单元为分母的误剔率。 |
+| PR-AUC（Average Precision，AP） | 按分数排序后计算非插值 $\mathrm{AP}=\sum_k(R_k-R_{k-1})P_k$ | 在不选阈值的情况下评价可见单元的排序能力，与渐进式内容优先级直接相关。 |
+| 正类比例与 AP lift | 与 AP 相同聚合口径的正类比例 $\pi$，以及 $\mathrm{AP}/\pi$ | 说明不同候选分布下的排序任务难度，避免只比较跨场景 AP 数值。 |
+| 平均预测单元数 | $\operatorname{mean}_p\lvert\widehat{\mathcal G}_p\rvert$ | 给出客户端实际保留工作量，补充相对比率。 |
 
-## 7.3.2 Structured Representation
+项目中的 PR-AUC 指非插值 Average Precision，不是 PR 曲线的梯形积分。pose-macro AP 在各 pose 内排序，只对包含正例的 pose 求均值并报告有效 pose 数；aggregate AP 将候选拼接后计算。零 GT pose 仍参与适用的候选与计数指标。Accuracy、Precision、Balanced Accuracy 等列入完整结果表，正文以安全性、CNOR 和 Useful Cull 为主。
 
-比较：
+## 6.2 主可见性结果
 
-- FULL
-- GENERIC_RELATION_28
+完整模型 FULL 在固定 logit 操作点 $\tau=0$ 下报告各场景、最差场景及场景等权汇总结果。主表同时包含 WR/LCB、Visible Recall、CNOR、Useful Cull 和 Bad Cull，分别对应视觉安全、数量覆盖、归一化剔除能力与实际工作量减少。目标场景校准的结果单独标注，校准数据与最终评价数据隔离。
 
-两者均使用 relation evidence，并保持相同的 runtime context budget；区别在于：
+图 4 展示同一观察区域下的参考、正确剔除、额外保留和可见遗漏；图像案例来自实际评价，不用示意图替代结果。表 3 承载定量主结果。
 
-- FULL：structured analytic directional field；
-- GENERIC_RELATION_28：unrestricted 28D latent。
+## 6.3 消融实验
 
-回答：
+| 正式对照 | 唯一研究因素 | 主要评价 |
+|---|---|---|
+| FULL / GEOMETRY_FIELD | 是否使用周围潜在遮挡关系；保留结构化场与同一训练目标 | 在相近安全性下比较 CNOR 和 Useful Cull，评价周围上下文的作用。 |
+| FULL / GENERIC_RELATION_28 | 结构化解析生存场与同为 28 维运行表示的无结构关系潜变量 | 比较紧凑表示形式对安全性、剔除和排序的影响；不将该对照解释为单独隔离每一个数学先验。 |
+| FULL / PBCE_OBJECTIVE | 完整表征不变，保守目标与逐 pose 平衡 BCE 对照 | 比较固定操作点的 WR/LCB 与剔除效率，并以 AP 辅助区分排序与决策边界变化。 |
 
-> structured directional field 是否比同容量 generic latent 更适合作为 compact visibility representation？
+消融范围保持上述三组。表 4 汇总重复实验；训练曲线、分数分布仅属于已有实验的补充分析。
 
----
+## 6.4 跨场景迁移
 
-## 7.3.3 Conservative Learning Objective
+采用 LOSO 和外部独立场景，冻结网络、检查点及评价协议后报告固定操作点结果。外部场景不参与架构、超参数或检查点选择；可见性标签用于最终评价。目标校准作为独立口径，不能以最终评价标签选阈值。表 5 区分固定阈值与目标校准，定性案例并入图 4。
 
-比较：
+## 6.5 运行与存储开销
 
-- FULL
-- PBCE_OBJECTIVE
+表 6 记录实际导出资产、bytes/unit、共享权重、编译时间和客户端查询延迟。图 5 以候选规模为横轴报告中位数和尾部延迟，用于检验逐单元查询随工作负载增长的代价。WebGPU、WASM 采用同一 V5 资产版本；几何或代理基线同时计入前置表示及准备成本。
 
-两者使用相同 Full representation，只改变训练目标。
+资产字节数反映获得可见性信号的网络启动成本，查询时间反映这一信号能否及时参与交互式内容选择。性能结果由 V5 实际部署测量，不以 V4 结果替代。
 
-回答：
+## 6.6 渐进式传输
 
-> 普通 pose-balanced classification objective 是否能够产生与 conservative PVS 相适应的稳定 operating boundary？
+相同候选单元、单位成本、缓存与带宽条件下比较原始顺序、几何启发式、已完成的代理／HZB 比较项、模型分数和 GT 参考顺序。设到达集合为 $\mathcal D(t)$，则：
 
-重点报告：
+$$
+\operatorname{Coverage}(t)=
+\frac{\sum_{u_i\in\mathcal D(t)\cap\mathcal G_p}w_{pi}}
+{\sum_{u_i\in\mathcal G_p}w_{pi}}.
+$$
 
-- fixed-zero Weighted Recall / LCB；
-- Useful Cull / CNOR；
-- PR-AUC；
-- calibrated diagnostic。
+Cost/Bytes@95/99/99.9 衡量恢复相同可见贡献所需的传输成本，而非只比较最终完整下载量；time-to-coverage 衡量内容到达速度；冗余量刻画达到该覆盖目标前用于不可见候选的开销。图 6 绘制覆盖曲线，表 7 汇总目标覆盖率对应的成本与时间。调度重放与完整浏览器端到端延迟分别报告。
 
-如有必要，可补充 score distribution 或 training dynamics，但这些不构成新的消融实验。
+## 实现依据
 
----
+指标公式与边界条件核对于实现仓库 `4faca3ce83ecc269d83a94c215a353925aa9be7e`：
 
-# 7.4 Cross-Scene Generalization
+- [统一评价协议](https://github.com/luxingzhi27/web3d-pvs/blob/4faca3ce83ecc269d83a94c215a353925aa9be7e/docs/evaluation/evaluation_protocol.md)。
+- [CNOR 实现](https://github.com/luxingzhi27/web3d-pvs/blob/4faca3ce83ecc269d83a94c215a353925aa9be7e/neural_instance_culling/model/common/culling_metrics.py)。
 
-本节独立于消融实验。
-
-## LOSO
-
-使用已有 LOSO protocol，评价 frozen model 在 held-out real scene 上的迁移能力。
-
-关注：
-
-- fixed operating point；
-- visibility safety；
-- culling efficiency；
-- ranking quality。
-
-## External Blind Holdout
-
-在 architecture、checkpoint 和 protocol 冻结后，对未参与设计和训练的 external scene 进行评价。
-
-为保证 external holdout 的独立性，该场景不用于 architecture、checkpoint 或 hyperparameter selection。visibility labels 可以用于正式评价；若进行 target calibration，则应与 fixed operating point 结果分开报告。
-
-本节回答：
-
-> frozen model 与 compact visibility representation 在 held-out / external scene 上具有怎样的迁移能力？
-
----
-
-# 7.5 Runtime and Storage Cost
-
-本节属于系统评价，不是网络消融。
-
-针对 V5 实际 runtime implementation 报告：
-
-- total visibility asset size；
-- bytes / unit；
-- shared model size；
-- offline compilation time；
-- WebGPU latency；
-- WASM latency；
-- latency vs candidate count。
-
-与可行的 geometry/proxy-based baseline 比较时，重点回答：
-
-> 为了在 detailed geometry residency 前获得 visibility，compact visibility asset 的存储与运行代价是否合理？
-
-V4 runtime 结果不能作为 V5 正式结果。
-
----
-
-# 7.6 Progressive Delivery
-
-本节验证 visibility signal 是否对 progressive Web delivery 有实际价值。
-
-所有方法必须使用相同的 candidate unit set。
-
-可比较：
-
-- baseline / original order；
-- distance / projected-area heuristic；
-- AABB-based baseline；
-- HZB visible-first；
-- V5 visibility score；
-- GT visibility oracle。
-
-如实验引入单位传输成本，则报告：
-
-- Cost/Bytes@95；
-- Cost/Bytes@99；
-- Cost/Bytes@99.9；
-- waste-before-99；
-- 固定带宽下的 time-to-coverage。
-
-如进一步执行真实 scheduler replay，可在本节末报告：
-
-- p50 / p95；
-- delivered payload；
-- waste；
-- time-to-coverage。
-
-需要明确区分 scheduler replay 与完整 browser rendering latency。
-
----
-
-# 当前实验边界
-
-## 已有正式消融
-
-仅包括：
-
-1. FULL vs GEOMETRY_FIELD
-2. FULL vs GENERIC_RELATION_28
-3. FULL vs PBCE_OBJECTIVE
-
-不再额外设计新的 architecture / hyperparameter ablation，除非后续审稿或实验结果明确需要。
-
-## 独立评价
-
-以下内容不是消融：
-
-- fixed-zero main results；
-- LOSO；
-- external blind holdout；
-- V5 runtime / storage；
-- progressive delivery；
-- scheduler replay。
-
-这些分别用于验证主模型、泛化能力和系统价值。
+本文仅解释现有指标及其统计动机，不更改指标实现或实验划分。
