@@ -1,280 +1,156 @@
-# 09 — Figures & Tables 规划（按图形学论文视觉叙事调整）
+# 09 — 论文图表目录
 
-原则：
+本目录与[论文总体大纲](00-overall-outline.md)采用同一编号。正文预留六幅图：应用效果概览、整体架构、生存场构建与查询、可见性定性结果、运行规模分析和渐进式传输效果。现有整体架构图与生存场架构图对应图 2、图 3，图像文件由作者后续上传。数据采样与后退视锥示意图暂不纳入正文。
 
-> 图形学顶会/TOG 的前几张图通常承担“问题 + 核心 insight + 方法行为”的解释，而不是把论文写作逻辑做成流程框图。
+## 1. 图像占位与文件命名
 
----
+| 编号 | 内容 | 正文位置 | 文件路径 | 状态 |
+|---|---|---|---|---|
+| 图 1 | 相同传输预算下的场景恢复 | 第 1 节 | `paper/figures/fig01-teaser.png` | 实验图占位 |
+| 图 2 | GCOF-PVS 整体架构 | 第 3.1 节 | `paper/figures/fig02-overall-framework.png` | 已有图稿，待上传 |
+| 图 3 | 方向生存场构建与区域查询 | 第 3.4 节 | `paper/figures/fig03-survival-field.png` | 已有图稿，待上传 |
+| 图 4 | 单元级可见性预测的定性比较 | 第 5.2 节 | `paper/figures/fig04-visibility-results.png` | 实验图占位 |
+| 图 5 | 候选规模与客户端查询开销 | 第 5.5 节 | `paper/figures/fig05-runtime-scaling.png` | 实验图占位 |
+| 图 6 | 渐进式可见贡献覆盖曲线 | 第 5.6 节 | `paper/figures/fig06-streaming-coverage.png` | 实验图占位 |
 
-# Figure 1 — Teaser：问题、方法行为和最终收益放在一起
+大纲中的图像标签暂置于 HTML 注释中，未上传时显示文字占位而非失效图片。上传说明见[图像目录](../paper/figures/README.md)。
 
-之前纯粹画：
+## 2. 统一符号与数据流
 
-```text
-Server → visibility asset → browser → scheduler
-```
+### 2.1 符号
 
-过于概念化，不够像图形学论文 teaser。
+| 符号 | 含义 |
+|---|---|
+| $u_i$ | 目标可独立剔除单元 |
+| $z_i\in\mathbb R^{32}$ | 局部几何描述符 |
+| $z_j\in\mathbb R^{32}$ | 来源或邻居单元的几何描述符 |
+| $e_{ijk}\in\mathbb R^8$ | 目标、来源与方向锚点对应的关系特征 |
+| $A_i\in\mathbb R^{12\times7}$ | 十二个方向锚点上的七维原始响应 |
+| $\Phi\in\mathbb R^{12\times4}$ | 固定一阶方向基矩阵 |
+| $F_i=\Phi^+A_i\in\mathbb R^{4\times7}$ | 方向生存场系数 |
+| $\boldsymbol\omega$ | 从目标中心指向查询位置的单位方向 |
+| $\ell$ | 目标中心到查询位置的世界距离 |
+| $\rho_i$ | 目标单元的尺度 |
+| $r$ | 水平圆盘观察区域的半径 |
+| $s_i\in\mathbb R^4$ | 中心、最大、平均、最小生存响应 |
+| $q_i\in\mathbb R^{16}$ | 相机、观察区域和目标相对几何构成的查询特征 |
+| $\xi_i$ | 最终单元可见性 logit |
+| $\tau$ | 冻结的决策阈值，主协议为零 |
 
-更推荐：
+### 2.2 架构连接
 
-## 左侧：同一个 view-region
+离线输入包括所有单元的表面几何和 AABB。共享编码器为目标与来源单元生成描述符；关系编译器联合 $z_i,z_j,e_{ijk}$，输出 $A_i$，固定投影产生 $F_i$。紧凑单元资产包含 $z_i,F_i$ 与必要元数据，共享预测头权重单独计入运行时资产。
 
-展示一个有明显遮挡关系的 Web3D scene：
+在线数据流由三条独立输入分支构成：
 
-- 当前 camera/view-cell；
-- foreground occluder；
-- behind-occluder geometry；
-- true potentially visible geometry。
+$$
+z_i\longrightarrow\text{预测头},
+\qquad
+(F_i,\text{支持点},\text{目标元数据})\longrightarrow s_i\longrightarrow\text{预测头},
+$$
 
-## 中间：baseline pre-download selection
+$$
+(\text{相机},\text{圆盘区域},\text{目标元数据})\longrightarrow q_i\longrightarrow\text{预测头}.
+$$
 
-例如：
+$q_i$ 不是 $s_i$ 的输出。局部编码器中的池化特征与尺寸比例采用拼接，不以数值相加符号表示。几何描述符 $z_i$ 与最终 logit $\xi_i$ 使用不同符号。
 
-- frustum / projected-size / distance；
+### 2.3 图面层级
 
-把一些 occluded resources 标记为高优先级。
+实线箭头表示计算依赖，跨越离线与在线边界的虚线箭头表示已编译资产的传输或读取。整体图显示关键表示尺寸，简单神经网络合并为编码器、编译器和预测头，不逐层绘制线性层与激活函数。
 
-## 右侧：GCOF-PVS
-
-展示：
-
-- compact visibility asset；
-- predicted relevance；
-- visible resources 更早到达；
-- occluded resources 被延后。
-
-如果最终有 streaming data，可以在 Figure 1 下面直接放：
-
-- same downloaded-byte budget；
-- baseline rendering；
-- ours rendering。
-
-这样 teaser 同时回答：
-
-> 这是个什么问题？  
-> 我们的方法改变了什么？  
-> 有什么视觉/系统收益？
-
-这更接近 Trim Regions / NeuralPVS 的 Figure 1 风格。
-
----
-
-# Figure 2 — Method Overview
-
-Figure 2 再画完整 pipeline：
-
-```text
-OFFLINE
-local geometry + proxy occlusion relations
-            ↓
-shared geometry compiler
-            ↓
-compact directional field
-================ transfer boundary ================
-WEB RUNTIME
-view region
-    ↓
-analytic field query
-    ↓
-visibility score
-    ↓
-resource priority
-```
-
-不要在 Figure 2 同时塞所有 layer dimensions。
-
-目标是让 reviewer 30 秒理解：
-
-> 哪些 computation offline，哪些 runtime，详细 geometry 在哪里消失。
+目标单元、几何描述符、方向场与区域统计采用一致配色。图内保留模块名称和必要数学符号；流程解释、采样数量含义及概率语义放入图注。
 
 ---
 
-# Figure 3 — GCOF Representation Detail
+## 3. 图 1——应用效果概览
 
-这里才详细画：
+**位置：** 引言末尾或首页 teaser 区域。
 
-- 256-point local surface；
-- 12 anchor directions；
-- top-K potential occluders；
-- relation aggregation；
-- anchor responses；
-- fixed directional projection；
-- 4×7 field。
+**构成：** 相同场景与相机下的基线渐进式画面、本文方法画面和完整参考画面；同一遮挡区域的局部放大；实际传输量和可见贡献覆盖率。样例来自正式传输评价，与图 6 使用同一协议。
 
-这张图回答：
+**图注：** 相同内容传输预算下的渐进式场景恢复。各方法使用相同候选单元与初始缓存状态，仅改变内容优先级。参考画面由完整场景生成，局部放大区域显示可见内容的恢复情况。
 
-> compact field 到底如何从 geometry-only context 编译出来？
+> ［图 1 占位：`paper/figures/fig01-teaser.png`］
 
 ---
 
-# Figure 4 — Directional Survival Field 与 Region Query
+## 4. 图 2——整体架构
 
-展示一个 target-centered directional field：
+**位置：** 第 3.1 节；第 4 节复用其在线系统分支。
 
-- 不同方向上的 survival curves；
-- location / scale 对 curve transition 的影响；
-- $S(0)=1$ 与 distance monotonicity；
-- horizontal-disk view-cell 的 9 个 analytic support points；
-- center / max / mean / min regional statistics。
+**构成：** 五个功能区分别为单元几何、共享几何编码、关系编译、区域解析查询和可见性预测。中间紧凑资产卡片汇聚离线结果，$z_i$ 和 $F_i$ 分别连接在线预测头和解析求值器。相机、圆盘与目标元数据连接查询几何分支。预测输出以单元保留、延后和排序表示。
 
-作用：
+**图注：** GCOF-PVS 的离线编译与在线查询。共享编码器生成 $z_i\in\mathbb R^{32}$，关系编译器生成方向响应 $A_i\in\mathbb R^{12\times7}$，经固定投影得到 $F_i\in\mathbb R^{4\times7}$。客户端读取紧凑资产，在水平圆盘的九个支持点上解析求值，形成 $s_i\in\mathbb R^4$。相机、观察区域与目标相对几何构成 $q_i\in\mathbb R^{16}$；预测头联合 $z_i,s_i,q_i$ 输出单元分数，用于区域过滤和渐进式排序。九个支持点仅用于解析计算，不产生额外渲染视图。
 
-> 解释 survival field 如何把 surrounding occlusion context 转化为连续的 direction-distance query，以及它为什么不同于普通 28D latent。
+> ［图 2 占位：`paper/figures/fig02-overall-framework.png`；已有图稿待上传］
 
 ---
 
-# Figure 5 — Shared Boundary（只有结果够强才进正文）
+## 5. 图 3——方向生存场构建与区域查询
 
-这是 training result figure，不应该排在很前。
+**位置：** 第 3.4 节；覆盖第 3.3—3.5 节的表征与查询过程。
 
-每个 scene：
+**构成：** 目标位于方向示意球中心，球面标记十二个锚点，周围单元体现投影重叠与遮挡关系。关系编译器联合目标和来源描述符及关系特征输出 $A_i$；固定投影得到 $F_i$。方向—距离查询示意与生存曲线解释场函数，水平圆盘上的中心及八个圆周点生成区域统计。球面仅表达方向，不表示局部体素网格或遮挡体搜索半径。
 
-- visible score distribution；
-- invisible score distribution；
-- $z=0$。
+**数学标注：** 主要保留 $F_i=\Phi^+A_i$、$t=\log(1+\ell/\rho_i)$、$S_i(\boldsymbol\omega,0)=1$ 和 $s_i\in\mathbb R^4$。七个原始参数对应无命中质量、两个混合权重、两个位置参数和两个尺度参数，不表示七个距离区间。曲线在固定方向上单调不增，可具有非零远距离下限。
 
-比较：
+**图注：** 方向生存场的编译与查询。潜在遮挡关系经共享编译器生成方向响应 $A_i$，固定一阶方向投影得到 $F_i$。任意目标到查询点的单位方向 $\boldsymbol\omega$ 与距离 $\ell$ 经解析函数得到生存响应。该响应在固定方向上关于距离单调不增，并在零距离处为一。圆盘中心及八个圆周支持点的响应汇总为 $s_i$，作为最终可见性预测的区域特征。曲线示意表示函数结构，不表示实测遮挡概率。
 
-- Full；
-- PBCE。
-
-如果它非常有说服力，放 Evaluation。
-
-如果只是辅助训练分析，移 supplementary。
+> ［图 3 占位：`paper/figures/fig03-survival-field.png`；已有图稿待上传］
 
 ---
 
-# Figure 6 — Safety–Efficiency Frontier
+## 6. 图 4——可见性预测定性结果
 
-横轴：
+**位置：** 第 5.2 节；第 5.4 节与讨论部分引用代表性的外部场景和困难案例。
 
-- Useful Cull / CNOR。
+**构成：** 完整参考、基线与本文预测采用相同相机；单元状态使用统一颜色区分正确保留、正确剔除与错误剔除。选取遮挡明显区域、细小结构和显露边界，包含成功与失败案例。当前帧渲染状态与区域 PVS 数值分别标注。
 
-纵轴：
+**图注：** 区域可见性预测的定性比较。各方法采用相同候选单元、相机和渲染设置。颜色区分正确保留、正确剔除与可见内容误剔，局部放大展示遮挡边界、细小结构及显露区域的预测差异。
 
-- Weighted Recall / Bad Cull。
-
-回答：
-
-> 在 conservative constraint 下，各方法能剔除多少真正冗余 geometry？
+> ［图 4 占位：`paper/figures/fig04-visibility-results.png`］
 
 ---
 
-# Figure 7 — Asset / Runtime Cost
+## 7. 图 5——候选规模与查询延迟
 
-分别画：
+**位置：** 第 5.5 节。
 
-- asset bytes vs number of units；
-- latency vs candidate count。
+**构成：** 横轴为实际候选单元数，纵轴为一次批量查询的时间。分别呈现运行后端、设备及冷启动或稳定状态，给出中位数与尾部延迟。资产存储开销在表 6 报告，不重复增加概念图。
 
-这是回答：
+**图注：** 客户端批量可见性查询的规模变化。各测量点对应相同资产版本与冻结查询协议，按后端报告查询延迟及其波动。运行时间包含范围在实验设置中明确列出。
 
-> 为什么不传 proxy geometry 直接跑 HZB？
-
-的重要图。
+> ［图 5 占位：`paper/figures/fig05-runtime-scaling.png`］
 
 ---
 
-# Figure 8 — Progressive Streaming Utility
+## 8. 图 6——渐进式可见贡献恢复
 
-横轴：
+**位置：** 第 5.6 节。
 
-- delivered unit payload / time。
+**构成：** 可见贡献覆盖率随累计传输量与时间变化的曲线。所有方法使用相同候选集合、单元成本与初始状态。覆盖率阈值对应的字节数、时间和冗余在表 7 汇总；图 1 展示其中一个固定预算下的画面。
 
-纵轴：
+**图注：** 不同内容优先级策略下的渐进式可见贡献覆盖率。所有策略处理相同候选集合，并使用一致的单元成本、缓存与带宽条件。曲线刻画内容到达过程，目标覆盖率对应的字节数、时间和冗余量见表 7。
 
-- visible-weight coverage。
-
-比较：
-
-- baseline priority；
-- projected area / byte；
-- AABB；
-- HZB；
-- GCOF；
-- GCOF / byte；
-- oracle。
+> ［图 6 占位：`paper/figures/fig06-streaming-coverage.png`］
 
 ---
 
-# Main Tables
+## 9. 表格目录
 
-## Table 1 — Related Work / Operating Point
+| 编号 | 位置 | 主要内容 |
+|---|---|---|
+| 表 1 | 相关工作 | 查询输入、预处理资产、计算位置、单点或区域输出及流式应用方式 |
+| 表 2 | 实验设置 | 场景、单元数、几何规模、中心数、圆盘半径、数据划分及实验角色 |
+| 表 3 | 主可见性结果 | Weighted Recall、LCB、Bad Cull、Useful Cull、CNOR、排序性能及重复实验统计 |
+| 表 4 | 消融实验 | `FULL` 与 `GEOMETRY_FIELD`、`GENERIC_RELATION_28`、`PBCE_OBJECTIVE` 的三组对照 |
+| 表 5 | 泛化 | 已见场景、LOSO、外部场景；固定操作点与目标校准口径分别呈现 |
+| 表 6 | 开销 | 单元资产、共享权重、元数据、编译时间及固定规模查询延迟 |
+| 表 7 | 传输 | Cost/Bytes@95/99/99.9、覆盖时间、冗余量及调度重放结果 |
 
-不要做“我们全勾、别人全叉”的营销表。
+所有定量图表引用正式评价产物。占位符不包含示例成绩，V5 系统结果使用 V5 资产与对应运行链路。
 
-建议客观列：
+## 10. 补充材料与编号范围
 
-- Method
-- From-region?
-- Runtime scene representation
-- Scene-specific preprocessing
-- Learned?
-- Client pre-content query?
-- Streaming application
-
----
-
-## Table 2 — Dataset / Scene Summary
-
-- scene；
-- units；
-- renderable units；
-- horizontal-disk radius；
-- region-center / direction protocol；
-- offline GT positions；
-- role。
-
----
-
-## Table 3 — Main Visibility Result
-
-把 safety 放前面：
-
-- WR；
-- LCB；
-- Bad Cull；
-- Useful Cull；
-- CNOR。
-
-然后才：
-
-- PR-AUC；
-- accuracy 等。
-
----
-
-## Table 4 — Representation / Training Ablations
-
-不要把所有 ablation 混在 Main Table。
-
-可以分别回答：
-
-- context necessary? Full vs Geometry Field；
-- structure necessary? Full vs Generic-28；
-- objective necessary? Full vs PBCE。
-
----
-
-## Table 5 — Runtime / Asset Cost
-
-这是 system claim 的关键。
-
----
-
-## Table 6 — Progressive Streaming
-
-Unit delivery Cost/Bytes@95 / 99 / waste / bandwidth time。
-
----
-
-# 总体规则
-
-前 3 张图优先解释：
-
-1. 问题和视觉/系统收益；
-2. offline vs runtime 的核心 pipeline；
-3. compact representation 的关键机制。
-
-训练机制相关图应该后移到 Evaluation，而不是主导论文前半部分。
+训练动力学和分数分布可作为已有实验日志的补充分析，不增加模型消融成员。本文的采样过程在正文用公式与协议描述，当前图表目录不包含独立的圆盘采样或后退视锥覆盖图。
