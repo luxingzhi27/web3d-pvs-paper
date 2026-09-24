@@ -6,14 +6,7 @@
 
 > **unit-level regional visibility prediction 如何在浏览器端参与剔除与渐进式内容选择？**
 
-论文核心方法不讨论：
-
-- 一个文件包含多少 units；
-- 一个 unit 属于哪个 GLB；
-- instance-to-resource aggregation；
-- 底层资源打包策略。
-
-这些都是具体系统实现问题，不属于 visibility 方法本身。
+论文核心方法始终以 renderable unit 为统一对象：visibility prediction、regional PVS、culling 与 progressive ordering 都在 unit level 定义。
 
 ---
 
@@ -57,9 +50,7 @@ scene geometry
 
 论文统一采用：
 
-> **固定方向 + 水平圆盘**
-
-而不是 oriented box / cube。
+> **固定方向 + 水平圆盘**。
 
 只要相机仍位于该圆盘内，且方向与投影参数仍满足当前 region contract，可以复用该次 regional prediction。
 
